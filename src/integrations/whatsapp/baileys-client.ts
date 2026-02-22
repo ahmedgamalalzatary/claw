@@ -50,7 +50,9 @@ export class BaileysClient implements WhatsAppClient {
       if (connection === "close") {
         this.currentStatus = "disconnected";
         await this.logger?.warn("WhatsApp connection closed. Reconnecting...");
-        this.socket?.ev.removeAllListeners();
+        this.socket?.ev.removeAllListeners("creds.update");
+        this.socket?.ev.removeAllListeners("connection.update");
+        this.socket?.ev.removeAllListeners("messages.upsert");
         this.socket = null;
         setTimeout(() => {
           this.connect().catch(async (err) => {
