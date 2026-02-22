@@ -50,6 +50,10 @@ export class BaileysClient implements WhatsAppClient {
       if (connection === "close") {
         this.currentStatus = "disconnected";
         await this.logger?.warn("WhatsApp connection closed. Reconnecting...");
+        this.socket?.ev.removeAllListeners("creds.update");
+        this.socket?.ev.removeAllListeners("connection.update");
+        this.socket?.ev.removeAllListeners("messages.upsert");
+        this.socket = null;
         setTimeout(() => {
           this.connect().catch(async (err) => {
             await this.logger?.error?.(`Reconnection failed: ${err}`);
@@ -86,7 +90,7 @@ export class BaileysClient implements WhatsAppClient {
       return;
     }
 
-    const text = extractText(message);
+    const text = extractTextFromBaileysMessage(message);
     if (!text) {
       return;
     }
@@ -105,7 +109,7 @@ export class BaileysClient implements WhatsAppClient {
   }
 }
 
-function extractText(message: any): string | null {
+export function extractTextFromBaileysMessage(message: any): string | null {
   const root = message?.message;
   if (!root) {
     return null;
@@ -120,17 +124,17 @@ function extractText(message: any): string | null {
   }
 
   if (root.ephemeralMessage?.message) {
-    return extractNestedText(root.ephemeralMessage.message);
+    return extractNestedTextFromBaileysMessage(root.ephemeralMessage.message);
   }
 
   if (root.viewOnceMessageV2?.message) {
-    return extractNestedText(root.viewOnceMessageV2.message);
+    return extractNestedTextFromBaileysMessage(root.viewOnceMessageV2.message);
   }
 
   return null;
 }
 
-function extractNestedText(nested: any): string | null {
+export function extractNestedTextFromBaileysMessage(nested: any): string | null {
   if (typeof nested?.conversation === "string") {
     return nested.conversation.trim();
   }

@@ -13,9 +13,16 @@ npm run dev          # Development with hot reload (tsx watch)
 npm run build        # Compile TypeScript to dist/
 npm start            # Run production build from dist/
 npm run typecheck    # Type check without emitting files
+npm test             # Run all tests
+npm run test:unit    # Run unit tests only
+npm run test:integration  # Run integration tests only
+npm run test:contract     # Run contract tests only
+npm run test:coverage     # Run tests with coverage gate
+npm run test:live         # Run live smoke tests
+npm run ci:check     # Typecheck + coverage + build
+# Single test file:
+npx vitest run tests/unit/router.test.ts
 ```
-
-**No test framework or linter is currently configured.** When adding tests, update this section with test commands including how to run a single test file.
 
 ## Code Style Guidelines
 

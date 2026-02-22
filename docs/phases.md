@@ -34,7 +34,7 @@ Implementation status is tracked in `docs/Checklist.md`.
 - Keep DM-only scope.
 - Keep text-only scope.
 - Reply to each normal incoming DM text message.
-- Reconnect forever when disconnected.
+- Reconnect with exponential backoff when disconnected (e.g., 1s, 2s, 4s, 8s, max 60s).
 
 ## Phase 4: Google Provider Wiring
 

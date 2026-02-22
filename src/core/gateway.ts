@@ -57,10 +57,11 @@ export class Gateway {
     };
 
     try {
+      const history = await this.sessions.getMessages(this.sessionPath);
       await this.sessions.appendMessage(this.sessionPath, userMessage);
       await this.sqlite.saveMessage(message.chatId, userMessage);
 
-      const aiResponse = await this.generateAssistantReply([userMessage]);
+      const aiResponse = await this.generateAssistantReply([...history, userMessage]);
       const finalText = this.formatAssistantReply(aiResponse.text);
       await this.whatsapp.sendText(message.chatId, finalText);
 

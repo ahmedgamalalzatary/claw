@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-#!/bin/bash
 cd "$(dirname "$0")/.." || exit 1
 
 TMPFILE=$(mktemp)
