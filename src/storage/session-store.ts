@@ -28,15 +28,15 @@ export class SessionStore {
   }
 
   async getMessages(sessionPath: string): Promise<ChatMessage[]> {
+    let raw: string
     try {
-      await readFile(sessionPath, { encoding: "utf8", flag: constants.F_OK })
+      raw = await readFile(sessionPath, "utf8")
     } catch {
       return []
     }
 
-    const raw = await readFile(sessionPath, "utf8")
     const messages: ChatMessage[] = []
-    const sectionPattern = /^## (system|user|assistant) \(([^)]+)\)\n([\s\S]*?)(?=\n## (?:system|user|assistant) \(|$)/gm
+    const sectionPattern = /\n## (system|user|assistant) \(([^)]+)\)\n([\s\S]*?)(?=\n## (?:system|user|assistant) \(|$)/g
 
     for (const match of raw.matchAll(sectionPattern)) {
       const role = match[1] as ChatMessage["role"]

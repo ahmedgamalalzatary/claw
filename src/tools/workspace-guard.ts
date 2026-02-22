@@ -6,7 +6,7 @@ export function assertWithinWorkspace(
 ): void {
   const root = path.resolve(workspaceRoot);
   const target = path.resolve(targetPath);
-  if (!target.startsWith(root)) {
+  if (target !== root && !target.startsWith(root + path.sep)) {
     throw new Error(`Access denied outside workspace: ${targetPath}`);
   }
 }
