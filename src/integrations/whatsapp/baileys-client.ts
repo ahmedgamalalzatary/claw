@@ -11,7 +11,7 @@ export class BaileysClient implements WhatsAppClient {
   constructor(
     private readonly authPath: string,
     private readonly logger?: Logger
-  ) {}
+  ) { }
 
   async start(onMessage: MessageHandler): Promise<void> {
     this.onMessage = onMessage;
@@ -51,7 +51,9 @@ export class BaileysClient implements WhatsAppClient {
         this.currentStatus = "disconnected";
         await this.logger?.warn("WhatsApp connection closed. Reconnecting...");
         setTimeout(() => {
-          void this.connect();
+          this.connect().catch(async (err) => {
+            await this.logger?.error?.(`Reconnection failed: ${err}`);
+          });
         }, 2000);
       }
     });
@@ -68,7 +70,8 @@ export class BaileysClient implements WhatsAppClient {
   }
 
   private async handleIncomingMessage(message: any): Promise<void> {
-    if (!this.onMessage) {
+    const onMessage = this.onMessage
+    if (!onMessage) {
       return;
     }
 
@@ -88,11 +91,16 @@ export class BaileysClient implements WhatsAppClient {
       return;
     }
 
-    await this.onMessage({
+    const timestamp = message?.messageTimestamp;
+    const receivedAt = timestamp
+      ? new Date(Number(timestamp) * 1000).toISOString()
+      : new Date().toISOString();
+
+    await onMessage({
       chatId: remoteJid,
       senderId: (message?.key?.participant as string | undefined) ?? remoteJid,
       text,
-      receivedAt: new Date().toISOString()
+      receivedAt
     });
   }
 }

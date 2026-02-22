@@ -99,7 +99,7 @@ try {
 - 2-space indentation
 - No trailing commas in function parameters or object literals
 - Prefer template literals for string interpolation
-- No semicolons at block ends (standard TypeScript)
+- No semicolons (project style preference)
 
 ### Comments
 

@@ -23,7 +23,7 @@ export class Gateway {
     private readonly sessions: SessionStore,
     private readonly sqlite: SqliteStore,
     private readonly logger: Logger
-  ) {}
+  ) { }
 
   async start(): Promise<void> {
     this.sessionPath = this.sessions.buildSessionPath(new Date());
@@ -44,7 +44,7 @@ export class Gateway {
       return;
     }
 
-    const cmd = parseSlashCommand(message.text);
+    const cmd = parseSlashCommand(userText);
     if (cmd) {
       await this.handleCommand(message.chatId, cmd.name);
       return;
@@ -73,10 +73,17 @@ export class Gateway {
       await this.sqlite.saveMessage(message.chatId, assistantMessage);
       await this.logger.info(`Replied using model: ${aiResponse.model}`);
     } catch (error) {
-      const messageText =
-        error instanceof Error ? error.message : "unknown model error";
-      await this.logger.error(`Failed to process message: ${messageText}`);
-      await this.whatsapp.sendText(message.chatId, `error: ${messageText}`);
+      const errorDetails =
+        error instanceof Error
+          ? error.stack ?? error.message
+          : JSON.stringify(error);
+      await this.logger.error(
+        `Failed to process message for chatId=${message.chatId} text=${JSON.stringify(userText)} details=${errorDetails}`
+      );
+      await this.whatsapp.sendText(
+        message.chatId,
+        "An internal error occurred, please try again later."
+      );
     }
   }
 

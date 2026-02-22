@@ -6,7 +6,7 @@ $rootPath = (Resolve-Path .).Path
 
 $files = Get-ChildItem -Recurse -File -Include $extensions -Path $rootPath |
   Where-Object {
-    $relativePath = $_.FullName.Replace($rootPath + "\", "")
+    $relativePath = $_.FullName.Substring($rootPath.Length + 1)
     $parts = $relativePath -split "[\\/]"
     -not ($excludeDirs | Where-Object { $parts -contains $_ })
   }
@@ -17,7 +17,7 @@ $results = $files | ForEach-Object {
   $lines = if ($null -eq $content) { 0 } else { ([regex]::Matches($content, "`n")).Count }
   [PSCustomObject]@{
     Lines = $lines
-    File  = $_.FullName.Replace($rootPath + "\", "")
+    File  = $_.FullName.Substring($rootPath.Length + 1)
   }
 } | Sort-Object Lines -Descending
 

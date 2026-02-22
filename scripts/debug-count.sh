@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-cd /d/Documents/current_work/claw
+#!/bin/bash
+cd "$(dirname "$0")/.." || exit 1
 
 TMPFILE=$(mktemp)
 echo "TMPFILE=$TMPFILE"
