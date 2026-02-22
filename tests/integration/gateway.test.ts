@@ -3,6 +3,7 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { Gateway } from "../../src/core/gateway.js"
 import { Logger } from "../../src/core/logger.js"
+import type { RetryPolicyOverrides } from "../../src/core/retry-policy.js"
 import { SessionStore } from "../../src/storage/session-store.js"
 import { SqliteStore } from "../../src/storage/sqlite-store.js"
 import type { GatewayConfig, ProviderParams } from "../../src/config/types.js"
@@ -121,6 +122,10 @@ let rootDir = ""
 let sessionsDir = ""
 let memoryDir = ""
 let dbPath = ""
+const testRetryPolicy: RetryPolicyOverrides = {
+  maxAttempts: 3,
+  delaysMs: [0]
+}
 
 async function findMarkdownFiles(dir: string): Promise<string[]> {
   let entries: Awaited<ReturnType<typeof readdir>>
@@ -166,7 +171,6 @@ afterEach(async () => {
 
 function buildConfig(): GatewayConfig {
   return {
-    timezone: "UTC",
     provider: {
       name: "google",
       apiKey: "test",
@@ -188,12 +192,6 @@ function buildConfig(): GatewayConfig {
       enabled: ["/status", "/ping", "/new"],
       unknownCommandBehavior: "ignore"
     },
-    retries: {
-      maxRetries: 3,
-      delaysMs: [0, 0, 0],
-      applyTo: "ai_calls_only",
-      fallbackOrder: ["retry same model", "fallback model 1", "fallback model 2"]
-    },
     heartbeat: {
       enabled: false,
       intervalMinutes: 30
@@ -213,14 +211,31 @@ function buildConfig(): GatewayConfig {
       dir: path.join(rootDir, "logs"),
       mode: "session_split",
       output: ["file"],
-      metadataOnly: false,
-      redact: []
+      metadataOnly: false
     },
     hotReload: {
       enabled: false,
       files: ["config.json"]
     }
   }
+}
+
+function createGateway(
+  config: GatewayConfig,
+  ai: AIClient,
+  whatsapp: WhatsAppClient,
+  sessions: SessionStore,
+  sqlite: SqliteStore
+): Gateway {
+  return new Gateway(
+    config,
+    ai,
+    whatsapp,
+    sessions,
+    sqlite,
+    new Logger(path.join(rootDir, "logs"), false),
+    testRetryPolicy
+  )
 }
 
 describe("Gateway integration", () => {
@@ -230,14 +245,7 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const gateway = new Gateway(
-      buildConfig(),
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("hello gateway")
@@ -256,14 +264,7 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const gateway = new Gateway(
-      buildConfig(),
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("/ping")
@@ -282,14 +283,7 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const gateway = new Gateway(
-      buildConfig(),
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("first")
@@ -310,14 +304,7 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const gateway = new Gateway(
-      buildConfig(),
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("retry please")
@@ -335,14 +322,7 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const gateway = new Gateway(
-      buildConfig(),
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("fail now")
@@ -352,26 +332,14 @@ describe("Gateway integration", () => {
 
   it("returns internal error text when AI throws a non-Error", async () => {
     const events: string[] = []
-    const ai = new FakeAI(["not-an-error-object"], events)
+    const ai = new FakeAI(
+      ["not-an-error-object", "still-not-an-error-object", "again-not-an-error-object"],
+      events
+    )
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const base = buildConfig()
-    const config: GatewayConfig = {
-      ...base,
-      retries: {
-        ...base.retries,
-        maxRetries: 1
-      }
-    }
-    const gateway = new Gateway(
-      config,
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("force non error")
@@ -385,14 +353,7 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new FailingMoveSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const gateway = new Gateway(
-      buildConfig(),
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("hello")
@@ -406,14 +367,7 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const gateway = new Gateway(
-      buildConfig(),
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("persist me")
@@ -439,14 +393,7 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const gateway = new Gateway(
-      buildConfig(),
-      ai,
-      whatsapp,
-      sessions,
-      sqlite,
-      new Logger(path.join(rootDir, "logs"), false)
-    )
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
 
     await gateway.start()
     await whatsapp.emit("first")

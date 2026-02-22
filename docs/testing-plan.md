@@ -122,7 +122,7 @@ Safety:
 2. Unknown slash commands are ignored.
 3. `/new` rotates session and starts a new one.
 4. Inbound message persistence happens before AI call.
-5. AI retries follow configured attempts and delays.
+5. AI retries follow internal retry policy attempts and delays.
 6. Final AI failure sends user-facing error text.
 7. Workspace guard blocks access outside workspace root.
 8. Heartbeat scheduler start/stop behavior is stable.

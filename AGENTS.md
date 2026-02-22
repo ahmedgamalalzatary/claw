@@ -41,7 +41,7 @@ src/prompts/context-builder.ts  # Loads workspace/*.md as system-role ChatMessag
 src/heartbeat/scheduler.ts      # setInterval wrapper for periodic tasks
 src/tools/workspace-guard.ts    # assertWithinWorkspace — path safety for file tools
 src/core/logger.ts        # Session-split file logger
-src/core/retry-policy.ts  # buildRetryPlan — builds ordered model+delay array from config
+src/core/retry-policy.ts  # buildRetryPlan — builds ordered model+delay array from internal defaults
 ```
 
 ## Critical Patterns
@@ -52,7 +52,7 @@ src/core/retry-policy.ts  # buildRetryPlan — builds ordered model+delay array 
 
 **Session storage format** — chat turns appended to `sessions/YYYY-MM-DD/HH-MM-SS.md`. `/new` command calls `moveSessionToMemory()` which renames to `memory/<uuid>.md`.
 
-**Retry/fallback chain** — `config.retries` drives model cycling in `Gateway.generateAssistantReply`: tries `primaryModel`, then each `fallbackModels[i]`, with `delaysMs[i]` between attempts.
+**Retry/fallback chain** — internal retry defaults drive model cycling in `Gateway.generateAssistantReply`: tries `primaryModel`, then each `fallbackModels[i]`, with hardcoded delays between attempts.
 
 ## Code Style Guidelines
 

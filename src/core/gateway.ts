@@ -12,6 +12,8 @@ import { SessionStore } from "../storage/session-store.js";
 import { SqliteStore } from "../storage/sqlite-store.js";
 import { Logger } from "./logger.js";
 import { isMissingFileError } from "../tools/errors.js";
+import { buildRetryPlan } from "./retry-policy.js";
+import type { RetryPolicyOverrides } from "./retry-policy.js";
 
 export class Gateway {
   private readonly bootAt = Date.now();
@@ -25,7 +27,8 @@ export class Gateway {
     private readonly whatsapp: WhatsAppClient,
     private readonly sessions: SessionStore,
     private readonly sqlite: SqliteStore,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly retryPolicyOverrides: RetryPolicyOverrides = {}
   ) { }
 
   async start(): Promise<void> {
@@ -187,27 +190,21 @@ export class Gateway {
   private async generateAssistantReply(
     input: ChatMessage[]
   ): Promise<{ text: string; model: string }> {
-    const modelChain = [
-      this.config.provider.primaryModel,
-      ...this.config.provider.fallbackModels
-    ];
-
-    const maxAttempts = Math.max(1, this.config.retries.maxRetries);
+    const retryPlan = buildRetryPlan(this.config.provider, this.retryPolicyOverrides);
     let lastError: unknown = null;
 
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const model = modelChain[Math.min(attempt, modelChain.length - 1)];
+    for (let attempt = 0; attempt < retryPlan.length; attempt += 1) {
+      const currentAttempt = retryPlan[attempt];
+      const model = currentAttempt?.model ?? this.config.provider.primaryModel;
       try {
         return await this.ai.complete(input, model, this.config.provider.params);
       } catch (error) {
         lastError = error;
-        const isLast = attempt === maxAttempts - 1;
+        const isLast = attempt === retryPlan.length - 1;
         if (isLast) {
           break;
         }
-        const delayMs =
-          this.config.retries.delaysMs[Math.min(attempt, this.config.retries.delaysMs.length - 1)] ??
-          0;
+        const delayMs = currentAttempt?.delayMs ?? 0;
         await this.logger.warn(
           `AI attempt ${attempt + 1} failed on model ${model}. Retrying in ${delayMs}ms.`
         );

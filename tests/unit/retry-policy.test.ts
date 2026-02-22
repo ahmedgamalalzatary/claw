@@ -1,72 +1,46 @@
 import { describe, expect, it } from "vitest"
-import { buildRetryPlan } from "../../src/core/retry-policy.js"
-import type { GatewayConfig } from "../../src/config/types.js"
+import {
+  buildRetryPlan,
+  DEFAULT_DELAYS_MS,
+  DEFAULT_MAX_ATTEMPTS
+} from "../../src/core/retry-policy.js"
+import type { ProviderConfig } from "../../src/config/types.js"
 
-function buildConfig(): GatewayConfig {
+function buildProvider(): ProviderConfig {
   return {
-    timezone: "UTC",
-    provider: {
-      name: "google",
-      apiKey: "x",
-      primaryModel: "model-a",
-      fallbackModels: ["model-b", "model-c"],
-      params: {
-        temperature: 0.2,
-        topP: 1,
-        maxOutputTokens: 512
-      }
+    name: "google",
+    apiKey: "x",
+    primaryModel: "model-a",
+    fallbackModels: ["model-b", "model-c"],
+    params: {
+      temperature: 0.2,
+      topP: 1,
+      maxOutputTokens: 512
     },
-    whatsapp: {
-      driver: "baileys",
-      mode: "dm_only",
-      authPath: "data/whatsapp",
-      textOnly: true
-    },
-    commands: {
-      enabled: ["/ping", "/status", "/new"],
-      unknownCommandBehavior: "ignore"
-    },
-    retries: {
-      maxRetries: 2,
-      delaysMs: [100, 200, 300],
-      applyTo: "ai_calls_only",
-      fallbackOrder: ["retry same model", "fallback model 1", "fallback model 2"]
-    },
-    heartbeat: {
-      enabled: true,
-      intervalMinutes: 30
-    },
-    storage: {
-      sessionsDir: "sessions",
-      memoryDir: "memory",
-      sqlitePath: "db/gateway.sqlite",
-      vector: {
-        engine: "sqlite-vec",
-        enabled: false,
-        indexSource: "chat_messages",
-        triggerMode: "bot_action_only"
-      }
-    },
-    logging: {
-      dir: "logs",
-      mode: "session_split",
-      output: ["file"],
-      metadataOnly: false,
-      redact: []
-    },
-    hotReload: {
-      enabled: false,
-      files: ["config.json"]
-    }
   }
 }
 
 describe("buildRetryPlan", () => {
-  it("builds plan from configured models and delays", () => {
-    const plan = buildRetryPlan(buildConfig())
+  it("builds plan from internal defaults", () => {
+    const plan = buildRetryPlan(buildProvider())
     expect(plan).toEqual([
-      { model: "model-a", delayMs: 100 },
-      { model: "model-b", delayMs: 200 }
+      { model: "model-a", delayMs: DEFAULT_DELAYS_MS[0] },
+      { model: "model-b", delayMs: DEFAULT_DELAYS_MS[1] },
+      { model: "model-c", delayMs: DEFAULT_DELAYS_MS[2] }
+    ])
+    expect(plan).toHaveLength(DEFAULT_MAX_ATTEMPTS)
+  })
+
+  it("reuses last model and delay when overrides exceed configured arrays", () => {
+    const plan = buildRetryPlan(buildProvider(), {
+      maxAttempts: 4,
+      delaysMs: [10]
+    })
+    expect(plan).toEqual([
+      { model: "model-a", delayMs: 10 },
+      { model: "model-b", delayMs: 10 },
+      { model: "model-c", delayMs: 10 },
+      { model: "model-c", delayMs: 10 }
     ])
   })
 })
