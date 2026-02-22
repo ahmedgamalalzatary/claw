@@ -14,8 +14,8 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - WhatsApp transport via `Baileys`.
 - 24/7 online assistant.
 - Reply to all inbound DMs.
-- Group support enabled now: reply only when bot is mentioned.
-- Group behavior is editable in `config.json`.
+- Group support is out of MVP scope (DM-only for current implementation).
+- Group behavior configuration is future scope.
 - Text only for MVP.
 - Non-text formats are future scope.
 - No rate limits for now.
@@ -43,7 +43,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - `/ping` returns gateway latency + UTC timestamp, no AI call.
 - `/new` starts a brand-new chat/session with a new session id and resets session context.
 - `/new` must notify the user whether session creation succeeded.
-- `/stop` cancels in-flight AI response generation and tool-calling for the current work.
+- `/stop` and tool-calling are out of MVP scope.
 
 ## Session/Memory/Persistence
 
@@ -51,8 +51,8 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Session files in `sessions/` as `.md`.
 - Session filename format in UTC: `sessions/YYYY-MM-DD/HH-mm-ss.md`.
 - One active session file per session.
-- On session end, move to `memory/<uuid>.md`.
-- Memory UUID must be 16 digits long.
+- On session end, move to `memory/<chat-scope>/<id>.md`.
+- Memory id is a 16-digit numeric identifier (not RFC UUID).
 - Session end triggers: `/new` and compaction.
 - No memory expiry.
 - Inbound write order: session `.md` first, then SQLite.
@@ -100,6 +100,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Otherwise send heartbeat output to WhatsApp.
 - If heartbeat processing fails, notify user and log the failure.
 - Store heartbeat output in `sessions/heartbeat/YYYY-MM-DD/HH-mm.md`.
+- Heartbeat status detection: treat an exact normalized response of `heartbeat ok` as success; any other non-empty output is forwarded to WhatsApp.
 
 ## Reliability
 
@@ -113,7 +114,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - On final AI failure: send error text to user and keep process alive.
 - If DB write still fails after retries, notify user.
 - On WhatsApp disconnect: reconnect forever.
-- Allow parallel message processing.
+- Process messages sequentially per gateway process to keep session writes and ordering consistent.
 - Out-of-order replies during bursts are acceptable.
 - Use message-id deduplication to avoid processing duplicate inbound events.
 
@@ -132,7 +133,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Docker deployment on VPS.
 - MVP preference: single container.
 - Pure worker process for MVP.
-- Include a local `/health` endpoint for Docker health checks.
+- For worker-only MVP, Docker health checks should rely on process/container status, not an HTTP `/health` endpoint.
 - Support both dev and production commands.
 - Hot-reload scope: `config.json` only.
 

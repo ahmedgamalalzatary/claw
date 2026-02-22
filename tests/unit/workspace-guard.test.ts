@@ -1,6 +1,6 @@
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { assertWithinWorkspace } from "../../src/tools/workspace-guard.ts"
+import { assertWithinWorkspace } from "../../src/tools/workspace-guard.js"
 
 describe("assertWithinWorkspace", () => {
   it("allows paths inside workspace", () => {

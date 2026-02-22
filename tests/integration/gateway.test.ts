@@ -14,10 +14,10 @@ import { createTempDir, removeTempDir } from "../helpers/temp-dir.js"
 class FakeAI implements AIClient {
   public readonly calls: string[] = []
   public readonly inputs: ChatMessage[][] = []
-  private readonly queue: Array<AIResponse | Error>
+  private readonly queue: Array<AIResponse | unknown>
   private readonly events: string[]
 
-  constructor(queue: Array<AIResponse | Error>, events: string[]) {
+  constructor(queue: Array<AIResponse | unknown>, events: string[]) {
     this.queue = queue
     this.events = events
   }
@@ -28,7 +28,7 @@ class FakeAI implements AIClient {
     this.calls.push(model)
     this.events.push(`ai:${model}`)
     const next = this.queue.shift()
-    if (next instanceof Error) {
+    if (next instanceof Error || typeof next === "string") {
       throw next
     }
     if (!next) {
@@ -84,6 +84,14 @@ class TrackingSessionStore extends SessionStore {
   }
 }
 
+class FailingMoveSessionStore extends TrackingSessionStore {
+  override async moveSessionToMemory(sessionPath: string, chatId: string): Promise<string> {
+    void sessionPath
+    void chatId
+    throw new Error("disk permission denied")
+  }
+}
+
 class TrackingSqliteStore extends SqliteStore {
   constructor(dbPath: string, private readonly events: string[]) {
     super(dbPath)
@@ -91,10 +99,16 @@ class TrackingSqliteStore extends SqliteStore {
 
   override async connect(): Promise<void> {
     this.events.push("sqlite:connect")
+    await super.connect()
   }
 
-  override async saveMessage(chatId: string, message: ChatMessage): Promise<void> {
+  override async saveMessage(
+    chatId: string,
+    message: ChatMessage,
+    sessionPath: string
+  ): Promise<void> {
     void chatId
+    void sessionPath
     this.events.push(`sqlite:${message.role}`)
   }
 
@@ -108,11 +122,30 @@ let sessionsDir = ""
 let memoryDir = ""
 let dbPath = ""
 
+async function findMarkdownFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true })
+  const files: string[] = []
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      const nestedFiles = await findMarkdownFiles(fullPath)
+      files.push(...nestedFiles)
+      continue
+    }
+    if (entry.isFile() && fullPath.endsWith(".md")) {
+      files.push(fullPath)
+    }
+  }
+
+  return files
+}
+
 beforeEach(async () => {
   rootDir = await createTempDir("gateway-integration")
   sessionsDir = path.join(rootDir, "sessions")
   memoryDir = path.join(rootDir, "memory")
-  dbPath = path.join(rootDir, "gateway.sqlite")
+  dbPath = ":memory:"
 })
 
 afterEach(async () => {
@@ -224,11 +257,13 @@ describe("Gateway integration", () => {
 
     await gateway.start()
     await whatsapp.emit("/ping")
+    await whatsapp.emit("/status")
     await whatsapp.emit("/unknown")
 
     expect(ai.calls).toHaveLength(0)
     expect(whatsapp.sent[0]?.text.startsWith("pong ")).toBe(true)
-    expect(whatsapp.sent).toHaveLength(1)
+    expect(whatsapp.sent[1]?.text).toContain("uptime:")
+    expect(whatsapp.sent).toHaveLength(2)
   })
 
   it("moves current session to memory when /new is called", async () => {
@@ -250,7 +285,7 @@ describe("Gateway integration", () => {
     await whatsapp.emit("first")
     await whatsapp.emit("/new")
 
-    const memoryFiles = await readdir(memoryDir)
+    const memoryFiles = await findMarkdownFiles(memoryDir)
     expect(memoryFiles.length).toBe(1)
     expect(memoryFiles[0]?.endsWith(".md")).toBe(true)
     expect(whatsapp.sent.at(-1)?.text).toBe("new session started")
@@ -305,6 +340,49 @@ describe("Gateway integration", () => {
     expect(whatsapp.sent[0]?.text).toContain("internal error")
   })
 
+  it("returns internal error text when AI throws a non-Error", async () => {
+    const events: string[] = []
+    const ai = new FakeAI(["not-an-error-object"], events)
+    const whatsapp = new FakeWhatsApp()
+    const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
+    const sqlite = new TrackingSqliteStore(dbPath, events)
+    const config = buildConfig()
+    config.retries.maxRetries = 1
+    const gateway = new Gateway(
+      config,
+      ai,
+      whatsapp,
+      sessions,
+      sqlite,
+      new Logger(path.join(rootDir, "logs"), false)
+    )
+
+    await gateway.start()
+    await whatsapp.emit("force non error")
+
+    expect(whatsapp.sent[0]?.text).toContain("internal error")
+  })
+
+  it("propagates /new errors when move to memory fails with non-ENOENT error", async () => {
+    const events: string[] = []
+    const ai = new FakeAI([{ text: "ok", model: "model-a" }], events)
+    const whatsapp = new FakeWhatsApp()
+    const sessions = new FailingMoveSessionStore(sessionsDir, memoryDir, events)
+    const sqlite = new TrackingSqliteStore(dbPath, events)
+    const gateway = new Gateway(
+      buildConfig(),
+      ai,
+      whatsapp,
+      sessions,
+      sqlite,
+      new Logger(path.join(rootDir, "logs"), false)
+    )
+
+    await gateway.start()
+    await whatsapp.emit("hello")
+    await expect(whatsapp.emit("/new")).rejects.toThrow(/disk permission denied/)
+  })
+
   it("writes session markdown with user and assistant messages", async () => {
     const events: string[] = []
     const ai = new FakeAI([{ text: "ack", model: "model-a" }], events)
@@ -323,9 +401,9 @@ describe("Gateway integration", () => {
     await gateway.start()
     await whatsapp.emit("persist me")
 
-    const dayDir = (await readdir(sessionsDir))[0]
-    const fileName = (await readdir(path.join(sessionsDir, dayDir)))[0]
-    const content = await readFile(path.join(sessionsDir, dayDir, fileName), "utf8")
+    const sessionFiles = await findMarkdownFiles(sessionsDir)
+    expect(sessionFiles.length).toBe(1)
+    const content = await readFile(sessionFiles[0] as string, "utf8")
     expect(content).toContain("## user")
     expect(content).toContain("persist me")
     expect(content).toContain("## assistant")

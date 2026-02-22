@@ -34,8 +34,13 @@ export class SessionStore {
     let raw: string
     try {
       raw = await readFile(sessionPath, "utf8")
-    } catch {
-      return []
+    } catch (error) {
+      const isNodeError = typeof error === "object" && error !== null
+      const errorCode = isNodeError ? (error as { code?: string }).code : undefined
+      if (errorCode === "ENOENT") {
+        return []
+      }
+      throw error
     }
 
     const messages: ChatMessage[] = []

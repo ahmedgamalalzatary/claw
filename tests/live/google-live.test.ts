@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { GoogleAIClient } from "../../src/integrations/ai/google-client.ts"
-import type { ChatMessage } from "../../src/types/chat.ts"
+import { GoogleAIClient } from "../../src/integrations/ai/google-client.js"
+import type { ChatMessage } from "../../src/types/chat.js"
 
 const hasLiveConfig = Boolean(process.env.GOOGLE_API_KEY && process.env.GOOGLE_MODEL)
 const describeLive = hasLiveConfig ? describe : describe.skip

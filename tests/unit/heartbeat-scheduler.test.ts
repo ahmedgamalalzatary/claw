@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { HeartbeatScheduler } from "../../src/heartbeat/scheduler.ts"
+import { HeartbeatScheduler } from "../../src/heartbeat/scheduler.js"
 
 afterEach(() => {
   vi.useRealTimers()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { handleNewSessionMessage, handlePing, handleStatus } from "../../src/commands/handlers.ts"
+import { handleNewSessionMessage, handlePing, handleStatus } from "../../src/commands/handlers.js"
 
 describe("command handlers", () => {
   it("formats ping response", () => {
