@@ -1,7 +1,8 @@
-import { appendFile, mkdir, readFile, rename } from "node:fs/promises"
+import { appendFile, mkdir, readFile, rename, stat } from "node:fs/promises"
 import { createHash, randomBytes } from "node:crypto"
 import path from "node:path"
 import type { ChatMessage } from "../types/chat.js"
+import { isMissingFileError } from "../tools/errors.js"
 
 const memoryFileDigits = 16n
 const memoryFileMod = 10n ** memoryFileDigits
@@ -26,7 +27,8 @@ export class SessionStore {
 
   async appendMessage(sessionPath: string, message: ChatMessage): Promise<void> {
     await mkdir(path.dirname(sessionPath), { recursive: true })
-    const block = `\n## ${message.role} (${message.createdAt})\n${message.content}\n`
+    const safeContent = this.serializeContent(message.content)
+    const block = `\n## ${message.role} (${message.createdAt})\n${safeContent}\n`
     await appendFile(sessionPath, block, "utf8")
   }
 
@@ -35,9 +37,7 @@ export class SessionStore {
     try {
       raw = await readFile(sessionPath, "utf8")
     } catch (error) {
-      const isNodeError = typeof error === "object" && error !== null
-      const errorCode = isNodeError ? (error as { code?: string }).code : undefined
-      if (errorCode === "ENOENT") {
+      if (isMissingFileError(error)) {
         return []
       }
       throw error
@@ -49,7 +49,7 @@ export class SessionStore {
     for (const match of raw.matchAll(sectionPattern)) {
       const role = match[1] as ChatMessage["role"]
       const createdAt = match[2]
-      const content = match[3]?.trim() ?? ""
+      const content = this.deserializeContent(match[3] ?? "")
 
       if (!role || !createdAt) {
         continue
@@ -69,7 +69,24 @@ export class SessionStore {
     const chatScope = this.buildChatScope(chatId)
     const targetDir = path.join(this.memoryDir, chatScope)
     await mkdir(targetDir, { recursive: true })
-    const target = path.join(targetDir, `${this.buildMemoryFileId()}.md`)
+
+    let target = ""
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const candidate = path.join(targetDir, `${this.buildMemoryFileId()}.md`)
+      try {
+        await stat(candidate)
+      } catch (error) {
+        if (isMissingFileError(error)) {
+          target = candidate
+          break
+        }
+        throw error
+      }
+    }
+    if (!target) {
+      throw new Error("Failed to allocate unique memory file id after 10 attempts.")
+    }
+
     await rename(sessionPath, target)
     return target
   }
@@ -89,6 +106,21 @@ export class SessionStore {
     const bytes = randomBytes(8)
     const value = BigInt(`0x${bytes.toString("hex")}`) % memoryFileMod
     return value.toString().padStart(Number(memoryFileDigits), "0")
+  }
+
+  private serializeContent(content: string): string {
+    return content
+      .split("\n")
+      .map((line) => `  ${line}`)
+      .join("\n")
+  }
+
+  private deserializeContent(content: string): string {
+    return content
+      .split("\n")
+      .map((line) => (line.startsWith("  ") ? line.slice(2) : line))
+      .join("\n")
+      .trim()
   }
 }
 

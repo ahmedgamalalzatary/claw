@@ -123,7 +123,17 @@ let memoryDir = ""
 let dbPath = ""
 
 async function findMarkdownFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true })
+  let entries: Awaited<ReturnType<typeof readdir>>
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch (error) {
+    const isNodeError = typeof error === "object" && error !== null
+    const errorCode = isNodeError ? (error as { code?: string }).code : undefined
+    if (errorCode === "ENOENT") {
+      return []
+    }
+    throw error
+  }
   const files: string[] = []
 
   for (const entry of entries) {
@@ -346,8 +356,14 @@ describe("Gateway integration", () => {
     const whatsapp = new FakeWhatsApp()
     const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
     const sqlite = new TrackingSqliteStore(dbPath, events)
-    const config = buildConfig()
-    config.retries.maxRetries = 1
+    const base = buildConfig()
+    const config: GatewayConfig = {
+      ...base,
+      retries: {
+        ...base.retries,
+        maxRetries: 1
+      }
+    }
     const gateway = new Gateway(
       config,
       ai,
@@ -363,7 +379,7 @@ describe("Gateway integration", () => {
     expect(whatsapp.sent[0]?.text).toContain("internal error")
   })
 
-  it("propagates /new errors when move to memory fails with non-ENOENT error", async () => {
+  it("returns internal error when /new move to memory fails with non-ENOENT error", async () => {
     const events: string[] = []
     const ai = new FakeAI([{ text: "ok", model: "model-a" }], events)
     const whatsapp = new FakeWhatsApp()
@@ -380,7 +396,8 @@ describe("Gateway integration", () => {
 
     await gateway.start()
     await whatsapp.emit("hello")
-    await expect(whatsapp.emit("/new")).rejects.toThrow(/disk permission denied/)
+    await whatsapp.emit("/new")
+    expect(whatsapp.sent.at(-1)?.text).toContain("internal error")
   })
 
   it("writes session markdown with user and assistant messages", async () => {

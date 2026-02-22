@@ -76,7 +76,7 @@ describe("SqliteStore", () => {
 
     await expect(fileStore.connect()).resolves.toBeUndefined()
     await expect(fileStore.connect()).resolves.toBeUndefined()
-    await expect(mkdir(dbDir, { recursive: false })).rejects.toBeDefined()
+    await expect(mkdir(dbDir, { recursive: false })).rejects.toMatchObject({ code: "EEXIST" })
 
     await fileStore.close()
   })

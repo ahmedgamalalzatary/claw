@@ -9,6 +9,7 @@ export class BaileysClient implements WhatsAppClient {
   private currentStatus = "disconnected";
   private onMessage: MessageHandler | null = null;
   private socket: ReturnType<typeof makeWASocket> | null = null;
+  private readonly composingRefreshMs = 9000;
 
   constructor(
     private readonly authPath: string,
@@ -153,10 +154,9 @@ export class BaileysClient implements WhatsAppClient {
   ): Promise<void> {
     await this.safeSendPresenceUpdate("composing", chatId)
 
-    const refreshIntervalMs = 9000
     const composingRefresh = setInterval(() => {
       void this.safeSendPresenceUpdate("composing", chatId)
-    }, refreshIntervalMs)
+    }, this.composingRefreshMs)
 
     try {
       await task()

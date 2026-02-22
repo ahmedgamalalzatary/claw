@@ -11,6 +11,7 @@ import {
 import { SessionStore } from "../storage/session-store.js";
 import { SqliteStore } from "../storage/sqlite-store.js";
 import { Logger } from "./logger.js";
+import { isMissingFileError } from "../tools/errors.js";
 
 export class Gateway {
   private readonly bootAt = Date.now();
@@ -50,7 +51,21 @@ export class Gateway {
 
     const cmd = parseSlashCommand(userText);
     if (cmd) {
-      await this.handleCommand(message.chatId, cmd.name);
+      try {
+        await this.handleCommand(message.chatId, cmd.name);
+      } catch (error) {
+        const errorDetails =
+          error instanceof Error
+            ? error.stack ?? error.message
+            : JSON.stringify(error);
+        await this.logger.error(
+          `Failed to handle command ${cmd.name} for chatId=${message.chatId} details=${errorDetails}`
+        );
+        await this.whatsapp.sendText(
+          message.chatId,
+          "An internal error occurred, please try again later."
+        );
+      }
       return;
     }
 
@@ -213,12 +228,4 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, Math.max(0, ms));
   });
-}
-
-function isMissingFileError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-  const maybeNodeError = error as { code?: string };
-  return maybeNodeError.code === "ENOENT";
 }
