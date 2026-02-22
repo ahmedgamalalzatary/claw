@@ -47,6 +47,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 
 ## Session/Memory/Persistence
 
+- Core files: `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `USER.md`, `HEARTBEAT.md`.
 - Session files in `sessions/` as `.md`.
 - Session filename format in UTC: `sessions/YYYY-MM-DD/HH-mm-ss.md`.
 - One active session file per session.
