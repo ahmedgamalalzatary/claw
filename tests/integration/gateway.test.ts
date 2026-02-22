@@ -13,6 +13,7 @@ import { createTempDir, removeTempDir } from "../helpers/temp-dir.ts"
 
 class FakeAI implements AIClient {
   public readonly calls: string[] = []
+  public readonly inputs: ChatMessage[][] = []
   private readonly queue: Array<AIResponse | Error>
   private readonly events: string[]
 
@@ -22,8 +23,8 @@ class FakeAI implements AIClient {
   }
 
   async complete(input: ChatMessage[], model: string, params: ProviderParams): Promise<AIResponse> {
-    void input
     void params
+    this.inputs.push(input)
     this.calls.push(model)
     this.events.push(`ai:${model}`)
     const next = this.queue.shift()
@@ -329,5 +330,57 @@ describe("Gateway integration", () => {
     expect(content).toContain("persist me")
     expect(content).toContain("## assistant")
     expect(content).toContain("ack")
+  })
+
+  it("sends prior session history into AI input", async () => {
+    const events: string[] = []
+    const ai = new FakeAI(
+      [
+        { text: "first-reply", model: "model-a" },
+        { text: "second-reply", model: "model-a" }
+      ],
+      events
+    )
+    const whatsapp = new FakeWhatsApp()
+    const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
+    const sqlite = new TrackingSqliteStore(dbPath, events)
+    const gateway = new Gateway(
+      buildConfig(),
+      ai,
+      whatsapp,
+      sessions,
+      sqlite,
+      new Logger(path.join(rootDir, "logs"), false)
+    )
+
+    await gateway.start()
+    await whatsapp.emit("first")
+    await whatsapp.emit("second")
+
+    expect(ai.inputs).toHaveLength(2)
+    expect(ai.inputs[0]).toEqual([
+      {
+        role: "user",
+        content: "first",
+        createdAt: expect.any(String)
+      }
+    ])
+    expect(ai.inputs[1]).toEqual([
+      {
+        role: "user",
+        content: "first",
+        createdAt: expect.any(String)
+      },
+      {
+        role: "assistant",
+        content: "first-reply",
+        createdAt: expect.any(String)
+      },
+      {
+        role: "user",
+        content: "second",
+        createdAt: expect.any(String)
+      }
+    ])
   })
 })

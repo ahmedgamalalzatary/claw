@@ -25,17 +25,20 @@ jobs:
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_REF: ${{ inputs.ref }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || '22' }}
+          envs: DEPLOY_REF
           script: |
             set -e
             cd "${{ secrets.VPS_APP_DIR }}"
             git fetch origin
-            git checkout "${{ inputs.ref }}"
-            git pull --ff-only origin "${{ inputs.ref }}"
+            git checkout "$DEPLOY_REF"
+            git pull --ff-only origin "$DEPLOY_REF"
             docker compose up -d --build
             docker compose ps
             RUNNING="$(docker compose ps --status running --services | grep -c '^gateway$' || true)"

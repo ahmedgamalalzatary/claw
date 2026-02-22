@@ -10,7 +10,22 @@ describe("assertWithinWorkspace", () => {
   })
 
   it("throws for paths outside workspace", () => {
-    expect(() => assertWithinWorkspace("workspace", "../config.json")).toThrow(
+    const workspaceRoot = path.join("workspace")
+    const targetPath = path.join("..", "config.json")
+    expect(() => assertWithinWorkspace(workspaceRoot, targetPath)).toThrow(
+      /Access denied outside workspace/
+    )
+  })
+
+  it("throws for traversal paths that start inside workspace then escape", () => {
+    const workspaceRoot = path.join("workspace")
+    const escapedFromRoot = path.join("workspace", "..", "config.json")
+    const escapedFromSubdir = path.join("workspace", "subdir", "..", "..", "secret")
+
+    expect(() => assertWithinWorkspace(workspaceRoot, escapedFromRoot)).toThrow(
+      /Access denied outside workspace/
+    )
+    expect(() => assertWithinWorkspace(workspaceRoot, escapedFromSubdir)).toThrow(
       /Access denied outside workspace/
     )
   })

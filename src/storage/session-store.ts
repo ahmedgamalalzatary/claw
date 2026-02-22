@@ -1,13 +1,14 @@
-import { mkdir, appendFile, rename } from "node:fs/promises";
+import { mkdir, appendFile, readFile, rename } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import type { ChatMessage } from "../types/chat.js";
 
 export class SessionStore {
   constructor(
     private readonly sessionsDir: string,
     private readonly memoryDir: string
-  ) {}
+  ) { }
 
   buildSessionPath(date = new Date()): string {
     const y = date.getUTCFullYear();
@@ -24,6 +25,36 @@ export class SessionStore {
     await mkdir(path.dirname(sessionPath), { recursive: true });
     const block = `\n## ${message.role} (${message.createdAt})\n${message.content}\n`;
     await appendFile(sessionPath, block, "utf8");
+  }
+
+  async getMessages(sessionPath: string): Promise<ChatMessage[]> {
+    try {
+      await readFile(sessionPath, { encoding: "utf8", flag: constants.F_OK })
+    } catch {
+      return []
+    }
+
+    const raw = await readFile(sessionPath, "utf8")
+    const messages: ChatMessage[] = []
+    const sectionPattern = /^## (system|user|assistant) \(([^)]+)\)\n([\s\S]*?)(?=\n## (?:system|user|assistant) \(|$)/gm
+
+    for (const match of raw.matchAll(sectionPattern)) {
+      const role = match[1] as ChatMessage["role"]
+      const createdAt = match[2]
+      const content = match[3]?.trim() ?? ""
+
+      if (!role || !createdAt) {
+        continue
+      }
+
+      messages.push({
+        role,
+        content,
+        createdAt
+      })
+    }
+
+    return messages
   }
 
   async moveSessionToMemory(sessionPath: string): Promise<string> {

@@ -59,4 +59,50 @@ describe("SessionStore", () => {
     const movedContent = await readFile(movedPath, "utf8")
     expect(movedContent).toBe("content")
   })
+
+  it("returns parsed chat messages from a session file", async () => {
+    const dir = await createTempDir("session-read")
+    tempDirs.push(dir)
+
+    const sessionsDir = path.join(dir, "sessions")
+    const memoryDir = path.join(dir, "memory")
+    const store = new SessionStore(sessionsDir, memoryDir)
+    const sessionPath = store.buildSessionPath(new Date("2026-01-02T03:04:05.000Z"))
+
+    await store.appendMessage(sessionPath, {
+      role: "user",
+      content: "hello",
+      createdAt: "2026-01-02T03:04:05.000Z"
+    })
+    await store.appendMessage(sessionPath, {
+      role: "assistant",
+      content: "hi there",
+      createdAt: "2026-01-02T03:04:06.000Z"
+    })
+
+    await expect(store.getMessages(sessionPath)).resolves.toEqual([
+      {
+        role: "user",
+        content: "hello",
+        createdAt: "2026-01-02T03:04:05.000Z"
+      },
+      {
+        role: "assistant",
+        content: "hi there",
+        createdAt: "2026-01-02T03:04:06.000Z"
+      }
+    ])
+  })
+
+  it("returns empty messages when session file does not exist", async () => {
+    const dir = await createTempDir("session-read-missing")
+    tempDirs.push(dir)
+
+    const sessionsDir = path.join(dir, "sessions")
+    const memoryDir = path.join(dir, "memory")
+    const store = new SessionStore(sessionsDir, memoryDir)
+    const missingPath = store.buildSessionPath(new Date("2026-01-02T03:04:05.000Z"))
+
+    await expect(store.getMessages(missingPath)).resolves.toEqual([])
+  })
 })

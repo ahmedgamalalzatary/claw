@@ -21,7 +21,7 @@ $results = $files | ForEach-Object {
   }
 } | Sort-Object Lines -Descending
 
-$total = ($results | Measure-Object -Property Lines -Sum).Sum
+$total = ($results | Measure-Object -Property Lines -Sum).Sum ?? 0
 
 "{0,-8} {1}" -f "Lines", "File"
 "{0,-8} {1}" -f "-----", "----"
