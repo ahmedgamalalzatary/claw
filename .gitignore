@@ -1,0 +1,21 @@
+node_modules/
+dist/
+*.log
+.env
+
+# Runtime state
+data/
+logs/
+sessions/
+memory/
+db/
+
+# Keep folder placeholders
+!data/.gitkeep
+!data/whatsapp/.gitkeep
+!logs/.gitkeep
+!sessions/.gitkeep
+!sessions/heartbeat/.gitkeep
+!memory/.gitkeep
+!db/.gitkeep
+.history/
