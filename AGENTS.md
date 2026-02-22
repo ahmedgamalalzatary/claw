@@ -4,7 +4,9 @@ Guidelines for AI coding agents working on the Claw Gateway codebase.
 
 ## Project Overview
 
-Claw Gateway is a personal WhatsApp AI gateway that connects WhatsApp messages to Google's Generative AI. It uses Baileys for WhatsApp integration and supports hot-reloadable configuration.
+Personal 24/7 WhatsApp AI gateway. Single-user, DM-only. Worker process (no HTTP server), Dockerized for VPS.
+
+**Flow:** `WhatsApp DM → BaileysClient → Gateway → GoogleAIClient → WhatsApp DM`
 
 ## Build/Lint/Test Commands
 
@@ -23,6 +25,34 @@ npm run ci:check     # Typecheck + coverage + build
 # Single test file:
 npx vitest run tests/unit/router.test.ts
 ```
+
+Node ≥ 22 required. First run prints a QR code — scan with WhatsApp to create auth state in `data/whatsapp/`.
+
+## Architecture
+
+```
+src/index.ts              # Entry: wires deps, starts gateway + hot-reload + heartbeat
+src/core/gateway.ts       # Central coordinator — message routing, AI calls, session lifecycle
+src/integrations/ai/      # AIClient interface + GoogleAIClient implementation
+src/integrations/whatsapp/# WhatsAppClient interface + BaileysClient implementation
+src/commands/             # router.ts (parseSlashCommand) + handlers.ts (pure string formatters)
+src/storage/              # SessionStore (markdown files), SqliteStore, VectorStore
+src/prompts/context-builder.ts  # Loads workspace/*.md as system-role ChatMessages
+src/heartbeat/scheduler.ts      # setInterval wrapper for periodic tasks
+src/tools/workspace-guard.ts    # assertWithinWorkspace — path safety for file tools
+src/core/logger.ts        # Session-split file logger
+src/core/retry-policy.ts  # buildRetryPlan — builds ordered model+delay array from config
+```
+
+## Critical Patterns
+
+**Interface/implementation split** — every external integration defines a contract in `client.ts` and a concrete class separately (e.g., `AIClient`/`GoogleAIClient`, `WhatsAppClient`/`BaileysClient`). New providers must implement the interface, not extend the concrete class.
+
+**Command handlers are pure functions** — `handlers.ts` returns plain strings; `Gateway` owns `sendText`. Never call `whatsapp.sendText` inside a handler.
+
+**Session storage format** — chat turns appended to `sessions/YYYY-MM-DD/HH-MM-SS.md`. `/new` command calls `moveSessionToMemory()` which renames to `memory/<uuid>.md`.
+
+**Retry/fallback chain** — `config.retries` drives model cycling in `Gateway.generateAssistantReply`: tries `primaryModel`, then each `fallbackModels[i]`, with `delaysMs[i]` between attempts.
 
 ## Code Style Guidelines
 
@@ -58,14 +88,12 @@ npx vitest run tests/unit/router.test.ts
 - **Variables/Functions/Methods**: camelCase (e.g., `sessionPath`, `buildSessionPath`)
 - **Files**: kebab-case (e.g., `google-client.ts`, `session-store.ts`)
 - **Private class members**: prefix with `private`, use `readonly` for injected dependencies
-- **Constants**: camelCase at module level, UPPER_CASE only for true constants if needed
 
 ### Class Structure
 
 ```typescript
 export class Gateway {
   private readonly bootAt = Date.now();
-  private sessionPath = "";
 
   constructor(
     private config: GatewayConfig,
@@ -83,15 +111,17 @@ export class Gateway {
 
 - Use try-catch blocks for operations that may fail
 - Check `error instanceof Error` before accessing error properties
-- Provide meaningful error messages and log them appropriately
+- Include stack trace when logging errors: `error.stack ?? error.message`
 - Throw new Error with descriptive messages for validation failures
 
 ```typescript
 try {
   await this.ai.complete(input, model, params);
 } catch (error) {
-  const messageText = error instanceof Error ? error.message : "unknown error";
-  await this.logger.error(`Failed: ${messageText}`);
+  const errorDetails = error instanceof Error
+    ? error.stack ?? error.message
+    : JSON.stringify(error);
+  await this.logger.error(`Failed: ${errorDetails}`);
 }
 ```
 
@@ -114,43 +144,21 @@ try {
 - No commented-out code in production files
 - JSDoc comments only for public APIs that need documentation
 
-### File Organization
+### Testing
 
-```
-src/
-├── index.ts              # Application entry point
-├── config/               # Configuration loading and types
-├── core/                 # Core business logic (Gateway, Logger)
-├── integrations/         # External service clients (AI, WhatsApp)
-│   ├── ai/
-│   └── whatsapp/
-├── storage/              # Data persistence (SQLite, sessions)
-├── commands/             # Slash command handling
-├── prompts/              # Context building for AI
-├── heartbeat/            # Periodic task scheduling
-├── tools/                # Utility functions
-└── types/                # Shared type definitions
-```
+- Use Vitest with `describe`, `it`, `expect` pattern
+- Test files mirror src structure: `tests/unit/router.test.ts` tests `src/commands/router.ts`
+- No semicolons in test files either
 
 ### Dependency Injection
 
 Classes receive dependencies through constructor parameters. This enables testing with mock implementations.
 
-```typescript
-const gateway = new Gateway(
-  config,
-  new GoogleAIClient(config.provider.apiKey),
-  new BaileysClient(config.whatsapp.authPath, logger),
-  new SessionStore(config.storage.sessionsDir, config.storage.memoryDir),
-  logger
-);
-```
-
 ### Configuration
 
 - Configuration is loaded from `config.json` via `ConfigLoader`
 - Hot-reload is supported via file watching
-- Schema validation should use Zod (available in dependencies)
+- Schema validation uses Zod
 
 ### Logging
 
@@ -161,10 +169,3 @@ await this.logger.info("Gateway started.");
 await this.logger.warn("Connection lost. Reconnecting...");
 await this.logger.error(`Failed to process: ${error.message}`);
 ```
-
-### WhatsApp Integration Notes
-
-- Uses Baileys library for WhatsApp Web protocol
-- QR code is printed to terminal on first connection
-- Auth state is persisted in `data/whatsapp/`
-- Only direct messages are processed for MVP (not groups)
