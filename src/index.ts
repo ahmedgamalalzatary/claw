@@ -18,8 +18,8 @@ async function main(): Promise<void> {
 
   const gateway = new Gateway(
     config,
-    new GoogleAIClient(),
-    new BaileysClient(),
+    new GoogleAIClient(config.provider.apiKey),
+    new BaileysClient(config.whatsapp.authPath, logger),
     new SessionStore(config.storage.sessionsDir, config.storage.memoryDir),
     new SqliteStore(config.storage.sqlitePath),
     logger
@@ -46,4 +46,3 @@ main().catch((error) => {
   process.stderr.write(`Fatal: ${reason}\n`);
   process.exit(1);
 });
-

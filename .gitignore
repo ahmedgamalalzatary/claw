@@ -23,3 +23,5 @@ sessions/heartbeat/*
 !memory/.gitkeep
 !db/.gitkeep
 .history/
+.github
+.agents

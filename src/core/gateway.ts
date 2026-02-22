@@ -1,7 +1,7 @@
 import type { GatewayConfig } from "../config/types.js";
 import type { AIClient } from "../integrations/ai/client.js";
 import type { WhatsAppClient } from "../integrations/whatsapp/client.js";
-import type { IncomingWhatsAppMessage } from "../types/chat.js";
+import type { ChatMessage, IncomingWhatsAppMessage } from "../types/chat.js";
 import { parseSlashCommand } from "../commands/router.js";
 import {
   handleNewSessionMessage,
@@ -39,13 +39,45 @@ export class Gateway {
   }
 
   private async onMessage(message: IncomingWhatsAppMessage): Promise<void> {
+    const userText = message.text.trim();
+    if (!userText) {
+      return;
+    }
+
     const cmd = parseSlashCommand(message.text);
     if (cmd) {
       await this.handleCommand(message.chatId, cmd.name);
       return;
     }
 
-    await this.logger.info("Received normal message.");
+    const userMessage: ChatMessage = {
+      role: "user",
+      content: userText,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await this.sessions.appendMessage(this.sessionPath, userMessage);
+      await this.sqlite.saveMessage(message.chatId, userMessage);
+
+      const aiResponse = await this.generateAssistantReply([userMessage]);
+      const finalText = this.formatAssistantReply(aiResponse.text);
+      await this.whatsapp.sendText(message.chatId, finalText);
+
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content: finalText,
+        createdAt: new Date().toISOString()
+      };
+      await this.sessions.appendMessage(this.sessionPath, assistantMessage);
+      await this.sqlite.saveMessage(message.chatId, assistantMessage);
+      await this.logger.info(`Replied using model: ${aiResponse.model}`);
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : "unknown model error";
+      await this.logger.error(`Failed to process message: ${messageText}`);
+      await this.whatsapp.sendText(message.chatId, `error: ${messageText}`);
+    }
   }
 
   private async handleCommand(chatId: string, command: string): Promise<void> {
@@ -83,5 +115,49 @@ export class Gateway {
   private sessionIdFromPath(filePath: string): string {
     return filePath.replace(/[\\/]/g, "_").replace(".md", "");
   }
+
+  private async generateAssistantReply(
+    input: ChatMessage[]
+  ): Promise<{ text: string; model: string }> {
+    const modelChain = [
+      this.config.provider.primaryModel,
+      ...this.config.provider.fallbackModels
+    ];
+
+    const maxAttempts = Math.max(1, this.config.retries.maxRetries);
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const model = modelChain[Math.min(attempt, modelChain.length - 1)];
+      try {
+        return await this.ai.complete(input, model, this.config.provider.params);
+      } catch (error) {
+        lastError = error;
+        const isLast = attempt === maxAttempts - 1;
+        if (isLast) {
+          break;
+        }
+        const delayMs =
+          this.config.retries.delaysMs[Math.min(attempt, this.config.retries.delaysMs.length - 1)] ??
+          0;
+        await this.logger.warn(
+          `AI attempt ${attempt + 1} failed on model ${model}. Retrying in ${delayMs}ms.`
+        );
+        await wait(delayMs);
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("AI call failed.");
+  }
+
+  private formatAssistantReply(text: string): string {
+    const normalized = text.replace(/\r\n/g, "\n").trim();
+    return normalized || "empty response";
+  }
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, Math.max(0, ms));
+  });
+}

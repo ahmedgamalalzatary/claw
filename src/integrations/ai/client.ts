@@ -1,4 +1,5 @@
 import type { ChatMessage } from "../../types/chat.js";
+import type { ProviderParams } from "../../config/types.js";
 
 export interface AIResponse {
   text: string;
@@ -6,6 +7,9 @@ export interface AIResponse {
 }
 
 export interface AIClient {
-  complete(input: ChatMessage[], model: string): Promise<AIResponse>;
+  complete(
+    input: ChatMessage[],
+    model: string,
+    params: ProviderParams
+  ): Promise<AIResponse>;
 }
-
