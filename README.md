@@ -20,7 +20,10 @@ Personal WhatsApp AI gateway using Baileys (WhatsApp Web) and Google Generative 
 ## Quick Start (Docker)
 
 1. Start Docker Desktop (or Docker Engine) and confirm daemon is running.
-2. Edit `config.json`:
+   - On Ubuntu VM, ensure Docker starts on boot:
+     - `sudo systemctl enable docker`
+     - `sudo systemctl start docker`
+2. Edit `config.json` file:
    - Set `provider.apiKey`
    - Set `provider.primaryModel`
    - Optionally set `provider.fallbackModels`

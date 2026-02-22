@@ -91,6 +91,8 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 ## Heartbeat
 
 - Default interval `30min`, configurable in `config.json`.
+- Heartbeat does not require cron for MVP; default behavior is in-app periodic scheduling while gateway is running.
+- Optional advanced mode: users may run heartbeat via `systemd timer`/cron for stricter wall-clock scheduling and host-level reliability.
 - Heartbeat runs as new/no-history chat.
 - Heartbeat context includes `HEARTBEAT + TOOLS + AGENTS + SOUL + USER`.
 - If AI returns `heartbeat ok`, send nothing.

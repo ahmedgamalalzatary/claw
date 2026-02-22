@@ -43,6 +43,9 @@ export class Gateway {
     if (!userText) {
       return;
     }
+    await this.logger.info(
+      `Inbound chatId=${message.chatId} text=${JSON.stringify(userText)}`
+    );
 
     const cmd = parseSlashCommand(userText);
     if (cmd) {
@@ -63,6 +66,9 @@ export class Gateway {
 
       const aiResponse = await this.generateAssistantReply([...history, userMessage]);
       const finalText = this.formatAssistantReply(aiResponse.text);
+      await this.logger.info(
+        `Outbound chatId=${message.chatId} model=${aiResponse.model} text=${JSON.stringify(finalText)}`
+      );
       await this.whatsapp.sendText(message.chatId, finalText);
 
       const assistantMessage: ChatMessage = {

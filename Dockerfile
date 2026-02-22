@@ -7,6 +7,7 @@ COPY src ./src
 COPY config.json ./config.json
 COPY workspace ./workspace
 
+RUN apk add --no-cache git
 RUN npm install
 RUN npm run build
 

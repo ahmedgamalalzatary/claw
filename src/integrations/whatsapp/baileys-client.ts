@@ -1,5 +1,7 @@
+
 import makeWASocket, { useMultiFileAuthState } from "@whiskeysockets/baileys";
 import pino from "pino";
+import qrcode from "qrcode-terminal";
 import type { MessageHandler, WhatsAppClient } from "./client.js";
 import type { Logger } from "../../core/logger.js";
 
@@ -33,7 +35,6 @@ export class BaileysClient implements WhatsAppClient {
     const { state, saveCreds } = await useMultiFileAuthState(this.authPath);
     const sock = makeWASocket({
       auth: state,
-      printQRInTerminal: true,
       logger: pino({ level: "silent" }),
       markOnlineOnConnect: false
     });
@@ -42,6 +43,11 @@ export class BaileysClient implements WhatsAppClient {
     sock.ev.on("creds.update", saveCreds);
     sock.ev.on("connection.update", async (update) => {
       const { connection } = update;
+      if (update.qr) {
+        qrcode.generate(update.qr, { small: true });
+        await this.logger?.info("Scan the QR code shown above to pair WhatsApp.");
+      }
+
       if (connection === "open") {
         this.currentStatus = "connected";
         await this.logger?.info("WhatsApp connection opened.");
@@ -63,7 +69,11 @@ export class BaileysClient implements WhatsAppClient {
     });
 
     sock.ev.on("messages.upsert", async (event: any) => {
-      if (event.type !== "notify") {
+      await this.logger?.info(
+        `messages.upsert type=${String(event?.type)} count=${event?.messages?.length ?? 0}`
+      );
+
+      if (event.type !== "notify" && event.type !== "append") {
         return;
       }
 
@@ -82,16 +92,23 @@ export class BaileysClient implements WhatsAppClient {
     const remoteJid = message?.key?.remoteJid as string | undefined;
     const fromMe = Boolean(message?.key?.fromMe);
     if (!remoteJid || fromMe) {
+      await this.logger?.info(
+        `skip message: remoteJid=${String(remoteJid)} fromMe=${String(fromMe)}`
+      );
       return;
     }
 
     // DM only for MVP.
-    if (!remoteJid.endsWith("@s.whatsapp.net")) {
+    const isDirectMessage =
+      remoteJid.endsWith("@s.whatsapp.net") || remoteJid.endsWith("@lid");
+    if (!isDirectMessage) {
+      await this.logger?.info(`skip non-dm message: remoteJid=${remoteJid}`);
       return;
     }
 
     const text = extractTextFromBaileysMessage(message);
     if (!text) {
+      await this.logger?.info(`skip non-text message: remoteJid=${remoteJid}`);
       return;
     }
 
