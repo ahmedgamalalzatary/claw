@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { HeartbeatStore } from "../../src/storage/heartbeat-store.ts"
-import { createTempDir, removeTempDir } from "../helpers/temp-dir.ts"
+import { HeartbeatStore } from "../../src/storage/heartbeat-store.js"
+import { createTempDir, removeTempDir } from "../helpers/temp-dir.js"
 
 describe("HeartbeatStore", () => {
   it("builds expected UTC heartbeat path", () => {

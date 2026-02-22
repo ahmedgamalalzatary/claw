@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   extractNestedTextFromBaileysMessage,
   extractTextFromBaileysMessage
-} from "../../src/integrations/whatsapp/baileys-client.ts"
+} from "../../src/integrations/whatsapp/baileys-client.js"
 
 describe("baileys message text extraction", () => {
   it("extracts root conversation text", () => {

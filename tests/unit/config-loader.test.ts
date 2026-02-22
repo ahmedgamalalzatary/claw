@@ -1,8 +1,8 @@
 import { writeFile } from "node:fs/promises"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { ConfigLoader } from "../../src/config/loader.ts"
-import { createTempDir, removeTempDir } from "../helpers/temp-dir.ts"
+import { ConfigLoader } from "../../src/config/loader.js"
+import { createTempDir, removeTempDir } from "../helpers/temp-dir.js"
 
 const sampleConfig = {
   timezone: "UTC",

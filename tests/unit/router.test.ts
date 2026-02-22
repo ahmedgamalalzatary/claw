@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseSlashCommand } from "../../src/commands/router.ts"
+import { parseSlashCommand } from "../../src/commands/router.js"
 
 describe("parseSlashCommand", () => {
   it("returns null when text does not start with slash", () => {

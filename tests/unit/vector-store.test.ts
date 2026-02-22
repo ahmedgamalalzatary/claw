@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { VectorStore } from "../../src/storage/vector-store.ts"
+import { VectorStore } from "../../src/storage/vector-store.js"
 
 describe("VectorStore", () => {
   it("reports disabled state", () => {

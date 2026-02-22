@@ -9,19 +9,6 @@ logs/*
 sessions/*
 memory/*
 db/*
-
-# Keep folder placeholders
-!data/whatsapp/
-!data/.gitkeep
-data/whatsapp/*
-!data/whatsapp/.gitkeep
-!logs/.gitkeep
-!sessions/.gitkeep
-!sessions/heartbeat/
-sessions/heartbeat/*
-!sessions/heartbeat/.gitkeep
-!memory/.gitkeep
-!db/.gitkeep
 .history/
 .agents
 coverage/

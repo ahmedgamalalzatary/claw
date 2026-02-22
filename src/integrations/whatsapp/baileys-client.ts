@@ -24,6 +24,7 @@ export class BaileysClient implements WhatsAppClient {
     if (!this.socket) {
       throw new Error("WhatsApp socket is not connected.");
     }
+    await this.safeSendPresenceUpdate("paused", chatId)
     await this.socket.sendMessage(chatId, { text });
   }
 
@@ -106,6 +107,8 @@ export class BaileysClient implements WhatsAppClient {
       return;
     }
 
+    await this.safeMarkAsRead(message)
+
     const text = extractTextFromBaileysMessage(message);
     if (!text) {
       await this.logger?.info(`skip non-text message: remoteJid=${remoteJid}`);
@@ -117,12 +120,69 @@ export class BaileysClient implements WhatsAppClient {
       ? new Date(Number(timestamp) * 1000).toISOString()
       : new Date().toISOString();
 
-    await onMessage({
-      chatId: remoteJid,
-      senderId: (message?.key?.participant as string | undefined) ?? remoteJid,
-      text,
-      receivedAt
-    });
+    await this.withComposingPresence(remoteJid, async () => {
+      await onMessage({
+        chatId: remoteJid,
+        senderId: (message?.key?.participant as string | undefined) ?? remoteJid,
+        text,
+        receivedAt
+      })
+    })
+  }
+
+  private async safeMarkAsRead(message: any): Promise<void> {
+    const key = message?.key
+    const sock = this.socket
+    if (!sock || !key) {
+      return
+    }
+
+    try {
+      await sock.readMessages([key])
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : String(error)
+      await this.logger?.warn(
+        `Failed to mark message as read for chatId=${String(key?.remoteJid)}: ${messageText}`
+      )
+    }
+  }
+
+  private async withComposingPresence(
+    chatId: string,
+    task: () => Promise<void>
+  ): Promise<void> {
+    await this.safeSendPresenceUpdate("composing", chatId)
+
+    const refreshIntervalMs = 9000
+    const composingRefresh = setInterval(() => {
+      void this.safeSendPresenceUpdate("composing", chatId)
+    }, refreshIntervalMs)
+
+    try {
+      await task()
+    } finally {
+      clearInterval(composingRefresh)
+      await this.safeSendPresenceUpdate("paused", chatId)
+    }
+  }
+
+  private async safeSendPresenceUpdate(
+    presence: "composing" | "paused",
+    chatId: string
+  ): Promise<void> {
+    const sock = this.socket
+    if (!sock) {
+      return
+    }
+
+    try {
+      await sock.sendPresenceUpdate(presence, chatId)
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : String(error)
+      await this.logger?.warn(
+        `Failed to send presence=${presence} for chatId=${chatId}: ${messageText}`
+      )
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { buildRetryPlan } from "../../src/core/retry-policy.ts"
-import type { GatewayConfig } from "../../src/config/types.ts"
+import { buildRetryPlan } from "../../src/core/retry-policy.js"
+import type { GatewayConfig } from "../../src/config/types.js"
 
 function buildConfig(): GatewayConfig {
   return {

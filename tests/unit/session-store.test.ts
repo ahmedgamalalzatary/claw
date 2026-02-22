@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { SessionStore } from "../../src/storage/session-store.ts"
-import { createTempDir, removeTempDir } from "../helpers/temp-dir.ts"
+import { SessionStore } from "../../src/storage/session-store.js"
+import { createTempDir, removeTempDir } from "../helpers/temp-dir.js"
 
 const tempDirs: string[] = []
 
@@ -19,7 +19,9 @@ describe("SessionStore", () => {
   it("builds UTC session path with expected format", () => {
     const store = new SessionStore("sessions", "memory")
     const date = new Date("2026-01-02T03:04:05.000Z")
-    expect(store.buildSessionPath(date)).toBe(path.join("sessions", "2026-01-02", "03-04-05.md"))
+    const sessionPath = store.buildSessionPath("user@s.whatsapp.net", date)
+    expect(sessionPath.startsWith(path.join("sessions"))).toBe(true)
+    expect(sessionPath.endsWith(path.join("2026-01-02", "03-04-05.md"))).toBe(true)
   })
 
   it("appends markdown message blocks", async () => {
@@ -29,7 +31,10 @@ describe("SessionStore", () => {
     const sessionsDir = path.join(dir, "sessions")
     const memoryDir = path.join(dir, "memory")
     const store = new SessionStore(sessionsDir, memoryDir)
-    const sessionPath = store.buildSessionPath(new Date("2026-01-02T03:04:05.000Z"))
+    const sessionPath = store.buildSessionPath(
+      "user@s.whatsapp.net",
+      new Date("2026-01-02T03:04:05.000Z")
+    )
 
     await store.appendMessage(sessionPath, {
       role: "user",
@@ -49,12 +54,15 @@ describe("SessionStore", () => {
     const sessionsDir = path.join(dir, "sessions")
     const memoryDir = path.join(dir, "memory")
     const store = new SessionStore(sessionsDir, memoryDir)
-    const sessionPath = store.buildSessionPath(new Date("2026-01-02T03:04:05.000Z"))
+    const sessionPath = store.buildSessionPath(
+      "user@s.whatsapp.net",
+      new Date("2026-01-02T03:04:05.000Z")
+    )
 
     await mkdir(path.dirname(sessionPath), { recursive: true })
     await writeFile(sessionPath, "content", "utf8")
 
-    const movedPath = await store.moveSessionToMemory(sessionPath)
+    const movedPath = await store.moveSessionToMemory(sessionPath, "user@s.whatsapp.net")
     expect(movedPath.startsWith(memoryDir)).toBe(true)
     const movedContent = await readFile(movedPath, "utf8")
     expect(movedContent).toBe("content")
@@ -67,7 +75,10 @@ describe("SessionStore", () => {
     const sessionsDir = path.join(dir, "sessions")
     const memoryDir = path.join(dir, "memory")
     const store = new SessionStore(sessionsDir, memoryDir)
-    const sessionPath = store.buildSessionPath(new Date("2026-01-02T03:04:05.000Z"))
+    const sessionPath = store.buildSessionPath(
+      "user@s.whatsapp.net",
+      new Date("2026-01-02T03:04:05.000Z")
+    )
 
     await store.appendMessage(sessionPath, {
       role: "user",
@@ -101,7 +112,10 @@ describe("SessionStore", () => {
     const sessionsDir = path.join(dir, "sessions")
     const memoryDir = path.join(dir, "memory")
     const store = new SessionStore(sessionsDir, memoryDir)
-    const missingPath = store.buildSessionPath(new Date("2026-01-02T03:04:05.000Z"))
+    const missingPath = store.buildSessionPath(
+      "user@s.whatsapp.net",
+      new Date("2026-01-02T03:04:05.000Z")
+    )
 
     await expect(store.getMessages(missingPath)).resolves.toEqual([])
   })

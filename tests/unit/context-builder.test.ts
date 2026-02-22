@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { buildBaseContext, buildHeartbeatContext } from "../../src/prompts/context-builder.ts"
-import { createTempDir, removeTempDir } from "../helpers/temp-dir.ts"
+import { buildBaseContext, buildHeartbeatContext } from "../../src/prompts/context-builder.js"
+import { createTempDir, removeTempDir } from "../helpers/temp-dir.js"
 
 const tempDirs: string[] = []
 

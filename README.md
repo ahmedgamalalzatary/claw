@@ -15,7 +15,7 @@ Personal WhatsApp AI gateway using Baileys (WhatsApp Web) and Google Generative 
 - Node.js `22+` 
 - Docker + Docker Compose 
 - A Google Generative AI API key or any other provider
-- A seperate phone number for WhatsApp for QR pairing
+- A separate phone number for WhatsApp for QR pairing
 
 ## Quick Start (Docker)
 

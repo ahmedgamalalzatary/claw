@@ -14,7 +14,9 @@ import { Logger } from "./logger.js";
 
 export class Gateway {
   private readonly bootAt = Date.now();
-  private sessionPath = "";
+  private readonly sessionPathByChatId = new Map<string, string>();
+  private readonly startupSessionId =
+    `gateway_${new Date().toISOString().replace(/[:.]/g, "-")}`;
 
   constructor(
     private config: GatewayConfig,
@@ -26,8 +28,7 @@ export class Gateway {
   ) { }
 
   async start(): Promise<void> {
-    this.sessionPath = this.sessions.buildSessionPath(new Date());
-    await this.logger.setSession(this.sessionIdFromPath(this.sessionPath));
+    await this.logger.setSession(this.startupSessionId);
     await this.sqlite.connect();
     await this.whatsapp.start(async (message) => this.onMessage(message));
     await this.logger.info("Gateway started.");
@@ -60,9 +61,11 @@ export class Gateway {
     };
 
     try {
-      const history = await this.sessions.getMessages(this.sessionPath);
-      await this.sessions.appendMessage(this.sessionPath, userMessage);
-      await this.sqlite.saveMessage(message.chatId, userMessage);
+      const sessionPath = await this.getOrCreateSessionPath(message.chatId);
+      await this.logger.setSession(this.sessionIdFromPath(sessionPath));
+      const history = await this.sessions.getMessages(sessionPath);
+      await this.sessions.appendMessage(sessionPath, userMessage);
+      await this.sqlite.saveMessage(message.chatId, userMessage, sessionPath);
 
       const aiResponse = await this.generateAssistantReply([...history, userMessage]);
       const finalText = this.formatAssistantReply(aiResponse.text);
@@ -76,8 +79,8 @@ export class Gateway {
         content: finalText,
         createdAt: new Date().toISOString()
       };
-      await this.sessions.appendMessage(this.sessionPath, assistantMessage);
-      await this.sqlite.saveMessage(message.chatId, assistantMessage);
+      await this.sessions.appendMessage(sessionPath, assistantMessage);
+      await this.sqlite.saveMessage(message.chatId, assistantMessage, sessionPath);
       await this.logger.info(`Replied using model: ${aiResponse.model}`);
     } catch (error) {
       const errorDetails =
@@ -114,11 +117,19 @@ export class Gateway {
     }
 
     if (command === "/new") {
-      if (this.sessionPath) {
-        await this.sessions.moveSessionToMemory(this.sessionPath);
+      const currentSessionPath = await this.getExistingSessionPath(chatId);
+      if (currentSessionPath) {
+        try {
+          await this.sessions.moveSessionToMemory(currentSessionPath, chatId);
+        } catch (error) {
+          if (!isMissingFileError(error)) {
+            throw error;
+          }
+        }
       }
-      this.sessionPath = this.sessions.buildSessionPath(new Date());
-      await this.logger.setSession(this.sessionIdFromPath(this.sessionPath));
+
+      const nextSessionPath = await this.createSessionPath(chatId);
+      await this.logger.setSession(this.sessionIdFromPath(nextSessionPath));
       await this.whatsapp.sendText(chatId, handleNewSessionMessage());
       return;
     }
@@ -128,6 +139,34 @@ export class Gateway {
 
   private sessionIdFromPath(filePath: string): string {
     return filePath.replace(/[\\/]/g, "_").replace(".md", "");
+  }
+
+  private async getOrCreateSessionPath(chatId: string): Promise<string> {
+    const existing = await this.getExistingSessionPath(chatId);
+    if (existing) {
+      return existing;
+    }
+    return this.createSessionPath(chatId);
+  }
+
+  private async getExistingSessionPath(chatId: string): Promise<string | null> {
+    const cached = this.sessionPathByChatId.get(chatId);
+    if (cached) {
+      return cached;
+    }
+
+    const persisted = await this.sqlite.getActiveSessionPath(chatId);
+    if (persisted) {
+      this.sessionPathByChatId.set(chatId, persisted);
+    }
+    return persisted;
+  }
+
+  private async createSessionPath(chatId: string): Promise<string> {
+    const sessionPath = this.sessions.buildSessionPath(chatId, new Date());
+    this.sessionPathByChatId.set(chatId, sessionPath);
+    await this.sqlite.setActiveSessionPath(chatId, sessionPath);
+    return sessionPath;
   }
 
   private async generateAssistantReply(
@@ -174,4 +213,12 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, Math.max(0, ms));
   });
+}
+
+function isMissingFileError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const maybeNodeError = error as { code?: string };
+  return maybeNodeError.code === "ENOENT";
 }
