@@ -25,7 +25,7 @@
 
 ## Chat Compaction
 
-- Trigger when full chat reaches `60000` tokens.
+- Trigger when full chat reaches `60k` tokens.
 - Compaction result:
   - Compress all existing messages.
   - Keep only the latest 2 raw messages:
