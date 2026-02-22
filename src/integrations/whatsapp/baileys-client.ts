@@ -86,7 +86,7 @@ export class BaileysClient implements WhatsAppClient {
       return;
     }
 
-    const text = extractText(message);
+    const text = extractTextFromBaileysMessage(message);
     if (!text) {
       return;
     }
@@ -105,7 +105,7 @@ export class BaileysClient implements WhatsAppClient {
   }
 }
 
-function extractText(message: any): string | null {
+export function extractTextFromBaileysMessage(message: any): string | null {
   const root = message?.message;
   if (!root) {
     return null;
@@ -120,17 +120,17 @@ function extractText(message: any): string | null {
   }
 
   if (root.ephemeralMessage?.message) {
-    return extractNestedText(root.ephemeralMessage.message);
+    return extractNestedTextFromBaileysMessage(root.ephemeralMessage.message);
   }
 
   if (root.viewOnceMessageV2?.message) {
-    return extractNestedText(root.viewOnceMessageV2.message);
+    return extractNestedTextFromBaileysMessage(root.viewOnceMessageV2.message);
   }
 
   return null;
 }
 
-function extractNestedText(nested: any): string | null {
+export function extractNestedTextFromBaileysMessage(nested: any): string | null {
   if (typeof nested?.conversation === "string") {
     return nested.conversation.trim();
   }
