@@ -30,19 +30,91 @@ Node ≥ 22 required. First run prints a QR code — scan with WhatsApp to creat
 
 ## Architecture
 
-```
-src/index.ts              # Entry: wires deps, starts gateway + hot-reload + heartbeat
-src/core/gateway.ts       # Central coordinator — message routing, AI calls, session lifecycle
-src/integrations/ai/      # AIClient interface + GoogleAIClient implementation
-src/integrations/whatsapp/# WhatsAppClient interface + BaileysClient implementation
-src/commands/             # router.ts (parseSlashCommand) + handlers.ts (pure string formatters)
-src/storage/              # SessionStore (markdown files), SqliteStore, VectorStore
-src/prompts/context-builder.ts  # Loads workspace/*.md as system-role ChatMessages
-src/heartbeat/scheduler.ts      # setInterval wrapper for periodic tasks
-src/tools/workspace-guard.ts    # assertWithinWorkspace — path safety for file tools
-src/core/logger.ts        # Session-split file logger
-src/core/retry-policy.ts  # buildRetryPlan — builds ordered model+delay array from internal defaults
-```
+
+homeclaw/
+├── docs/
+│   ├── architecture.md
+│   ├── Checklist.md
+│   ├── Features.md
+│   ├── memory.md
+│   ├── phases.md
+│   ├── summarization.md
+│   └── testing-plan.md
+├── scripts/
+│   ├── count-lines.ps1
+│   └── count-lines.sh
+├── src/
+│   ├── commands/
+│   │   ├── handlers.ts [binary]
+│   │   └── router.ts [binary]
+│   ├── config/
+│   │   ├── loader.ts [binary]
+│   │   └── types.ts [binary]
+│   ├── core/
+│   │   ├── gateway.ts [binary]
+│   │   ├── logger.ts [binary]
+│   │   └── retry-policy.ts [binary]
+│   ├── heartbeat/
+│   │   └── scheduler.ts [binary]
+│   ├── integrations/
+│   │   ├── ai/
+│   │   │   ├── client.ts [binary]
+│   │   │   └── google-client.ts [binary]
+│   │   └── whatsapp/
+│   │       ├── baileys-client.ts [binary]
+│   │       ├── baileys-parser.ts [binary]
+│   │       └── client.ts [binary]
+│   ├── prompts/
+│   │   └── context-builder.ts [binary]
+│   ├── storage/
+│   │   ├── heartbeat-store.ts [binary]
+│   │   ├── session-store.ts [binary]
+│   │   ├── sqlite-store.ts [binary]
+│   │   └── vector-store.ts [binary]
+│   ├── tools/
+│   │   ├── errors.ts [binary]
+│   │   └── workspace-guard.ts [binary]
+│   ├── types/
+│   │   └── chat.ts [binary]
+│   └── index.ts [binary]
+├── tests/
+│   ├── contract/
+│   │   └── baileys-parser.test.ts [binary]
+│   ├── helpers/
+│   │   └── temp-dir.ts [binary]
+│   ├── integration/
+│   │   └── gateway.test.ts [binary]
+│   ├── live/
+│   │   └── google-live.test.ts [binary]
+│   └── unit/
+│       ├── config-loader.test.ts [binary]
+│       ├── context-builder.test.ts [binary]
+│       ├── handlers.test.ts [binary]
+│       ├── heartbeat-scheduler.test.ts [binary]
+│       ├── heartbeat-store.test.ts [binary]
+│       ├── logger.test.ts [binary]
+│       ├── retry-policy.test.ts [binary]
+│       ├── router.test.ts [binary]
+│       ├── session-store.test.ts [binary]
+│       ├── sqlite-store.test.ts [binary]
+│       ├── vector-store.test.ts [binary]
+│       └── workspace-guard.test.ts [binary]
+├── workspace/
+│   ├── Memory/
+│   │   └── .gitkeep
+│   ├── AGENTS.md
+│   ├── HEARTBEAT.md
+│   ├── SOUL.md
+│   ├── TOOLS.md
+│   └── USER.md
+├── AGENTS.md
+├── config.json
+├── package.json
+├── README.md
+├── tsconfig.json
+├── vitest.config.ts [binary]
+└── vitest.live.config.ts [binary]
+
 
 ## Critical Patterns
 
@@ -50,7 +122,11 @@ src/core/retry-policy.ts  # buildRetryPlan — builds ordered model+delay array 
 
 **Command handlers are pure functions** — `handlers.ts` returns plain strings; `Gateway` owns `sendText`. Never call `whatsapp.sendText` inside a handler.
 
-**Session storage format** — chat turns appended to `sessions/YYYY-MM-DD/HH-MM-SS.md`. `/new` command calls `moveSessionToMemory()` which renames to `memory/<uuid>.md`.
+**Session storage format** — chat turns appended to `sessions/YYYY-MM-DD/HH-mm-ss.md`. `/new` command calls `moveSessionToMemory()` which renames to `memory/<id>.md` where `<id>` is UTC compact timestamp format `YYYYMMDDHHmmss` (example: `20260223151450.md`).
+
+**Command outputs** — `/status` output must include active session id/path.
+
+**Prompt context for normal messages** — load `workspace/AGENTS.md`, `workspace/SOUL.md`, `workspace/TOOLS.md`, and `workspace/USER.md` for normal user messages. `workspace/HEARTBEAT.md` is for heartbeat runs only.
 
 **Retry/fallback chain** — internal retry defaults drive model cycling in `Gateway.generateAssistantReply`: tries `primaryModel`, then each `fallbackModels[i]`, with hardcoded delays between attempts.
 
@@ -159,13 +235,3 @@ Classes receive dependencies through constructor parameters. This enables testin
 - Configuration is loaded from `config.json` via `ConfigLoader`
 - Hot-reload is supported via file watching
 - Schema validation uses Zod
-
-### Logging
-
-Use the Logger class for all logging. It supports INFO, WARN, and ERROR levels with file and console output.
-
-```typescript
-await this.logger.info("Gateway started.");
-await this.logger.warn("Connection lost. Reconnecting...");
-await this.logger.error(`Failed to process: ${error.message}`);
-```

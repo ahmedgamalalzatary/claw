@@ -20,8 +20,7 @@ export function buildRetryPlan(
   const maxAttempts = Math.max(1, overrides.maxAttempts ?? DEFAULT_MAX_ATTEMPTS)
   const configuredDelays = overrides.delaysMs ?? [...DEFAULT_DELAYS_MS]
   const delays = configuredDelays.length > 0 ? configuredDelays : [0]
-  const models = [provider.primaryModel, ...provider.fallbackModels]
-  const modelChain = models.length > 0 ? models : [provider.primaryModel]
+  const modelChain = [provider.primaryModel, ...provider.fallbackModels]
 
   return Array.from({ length: maxAttempts }, (_, idx) => ({
     model: modelChain[Math.min(idx, modelChain.length - 1)] as string,

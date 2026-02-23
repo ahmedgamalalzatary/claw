@@ -274,6 +274,7 @@ describe("Gateway integration", () => {
     expect(ai.calls).toHaveLength(0)
     expect(whatsapp.sent[0]?.text.startsWith("pong ")).toBe(true)
     expect(whatsapp.sent[1]?.text).toContain("uptime:")
+    expect(whatsapp.sent[1]?.text).toContain("session:")
     expect(whatsapp.sent).toHaveLength(2)
   })
 
@@ -313,7 +314,7 @@ describe("Gateway integration", () => {
     expect(whatsapp.sent[0]?.text).toBe("fallback response")
   })
 
-  it("returns provider error text when AI ultimately fails", async () => {
+  it("sends last raw provider error message to user when AI ultimately fails", async () => {
     const events: string[] = []
     const ai = new FakeAI(
       [new Error("a"), new Error("b"), new Error("c")],
@@ -381,6 +382,23 @@ describe("Gateway integration", () => {
     expect(content).toContain("ack")
   })
 
+  it("prepends workspace system context to AI input", async () => {
+    const events: string[] = []
+    const ai = new FakeAI([{ text: "ok", model: "model-a" }], events)
+    const whatsapp = new FakeWhatsApp()
+    const sessions = new TrackingSessionStore(sessionsDir, memoryDir, events)
+    const sqlite = new TrackingSqliteStore(dbPath, events)
+    const gateway = createGateway(buildConfig(), ai, whatsapp, sessions, sqlite)
+
+    await gateway.start()
+    await whatsapp.emit("hello")
+
+    const input = ai.inputs[0] ?? []
+    const systemMessages = input.filter((m) => m.role === "system")
+    expect(systemMessages.length).toBeGreaterThan(0)
+    expect(systemMessages[0]?.content).toMatch(/File: (AGENTS|SOUL|TOOLS|USER)\.md/)
+  })
+
   it("sends prior session history into AI input", async () => {
     const events: string[] = []
     const ai = new FakeAI(
@@ -400,14 +418,14 @@ describe("Gateway integration", () => {
     await whatsapp.emit("second")
 
     expect(ai.inputs).toHaveLength(2)
-    expect(ai.inputs[0]).toEqual([
+    expect(ai.inputs[0]?.at(-1)).toEqual(
       {
         role: "user",
         content: "first",
         createdAt: expect.any(String)
       }
-    ])
-    expect(ai.inputs[1]).toEqual([
+    )
+    expect(ai.inputs[1]?.slice(-3)).toEqual([
       {
         role: "user",
         content: "first",

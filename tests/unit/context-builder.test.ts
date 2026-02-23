@@ -34,6 +34,18 @@ describe("context builders", () => {
     expect(messages[3]?.content).toContain("File: USER.md")
   })
 
+  it("silently skips missing workspace files and returns partial context", async () => {
+    const dir = await createTempDir("context-partial")
+    tempDirs.push(dir)
+
+    await mkdir(dir, { recursive: true })
+    await writeFile(path.join(dir, "SOUL.md"), "soul only", "utf8")
+
+    const messages = await buildBaseContext(dir)
+    expect(messages).toHaveLength(1)
+    expect(messages[0]?.content).toContain("File: SOUL.md")
+  })
+
   it("adds heartbeat file as extra system context when available", async () => {
     const dir = await createTempDir("context-heartbeat")
     tempDirs.push(dir)

@@ -51,8 +51,8 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Session files in `sessions/` as `.md`.
 - Session filename format in UTC: `sessions/YYYY-MM-DD/HH-mm-ss.md`.
 - One active session file per session.
-- On session end, move to `memory/<chat-scope>/<id>.md`.
-- Memory id is a 16-digit numeric identifier (not RFC UUID).
+- On session end, move to `memory/<id>.md`.
+- Memory id format is UTC compact timestamp `YYYYMMDDHHmmss` (example: `20260223151450.md`).
 - Session end triggers: `/new` and compaction.
 - No memory expiry.
 - Inbound write order: session `.md` first, then SQLite.
@@ -85,7 +85,8 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - System command execution is allowed, but file modifications must stay inside `/workspace`.
 - Core files: `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `USER.md`, `HEARTBEAT.md`.
 - System prompt source is `AGENTS.md`.
-- Context assembly order: `AGENTS -> SOUL -> TOOLS -> USER -> HEARTBEAT/message -> chat context`.
+- Context assembly order (normal user messages): `AGENTS -> SOUL -> TOOLS -> USER -> chat context`.
+- Context assembly order (heartbeat): `AGENTS -> SOUL -> TOOLS -> USER -> HEARTBEAT -> heartbeat message`.
 - Skills concept discussed as markdown skill files (`.agent/[skill]/Skill.md` style).
 - AI updating files via tools is part of the intended design path.
 
@@ -95,7 +96,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Heartbeat does not require cron for MVP; default behavior is in-app periodic scheduling while gateway is running.
 - Optional advanced mode: users may run heartbeat via `systemd timer`/cron for stricter wall-clock scheduling and host-level reliability.
 - Heartbeat runs as new/no-history chat.
-- Heartbeat context includes `HEARTBEAT + TOOLS + AGENTS + SOUL + USER`.
+- Heartbeat context includes ` TOOLS + AGENTS + SOUL + USER`.
 - If AI returns `heartbeat ok`, send nothing.
 - Otherwise send heartbeat output to WhatsApp.
 - If heartbeat processing fails, notify user and log the failure.
@@ -114,7 +115,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - On final AI failure: send error text to user and keep process alive.
 - If DB write still fails after retries, notify user.
 - On WhatsApp disconnect: reconnect forever.
-- Process messages sequentially per gateway process to keep session writes and ordering consistent.
+- Process messages in parallel; strict sequential processing is not required.
 - Out-of-order replies during bursts are acceptable.
 - Use message-id deduplication to avoid processing duplicate inbound events.
 

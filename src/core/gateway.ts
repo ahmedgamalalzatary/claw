@@ -14,6 +14,7 @@ import { Logger } from "./logger.js";
 import { isMissingFileError } from "../tools/errors.js";
 import { buildRetryPlan } from "./retry-policy.js";
 import type { RetryPolicyOverrides } from "./retry-policy.js";
+import { buildBaseContext } from "../prompts/context-builder.js";
 
 export class Gateway {
   private readonly bootAt = Date.now();
@@ -84,10 +85,15 @@ export class Gateway {
       const history = await this.sessions.getMessages(sessionPath);
       await this.sessions.appendMessage(sessionPath, userMessage);
       await this.sqlite.saveMessage(message.chatId, userMessage, sessionPath);
+      const baseContext = await buildBaseContext("workspace");
 
       let aiResponse: { text: string; model: string; attempt: number; latencyMs: number };
       try {
-        aiResponse = await this.generateAssistantReply([...history, userMessage]);
+        aiResponse = await this.generateAssistantReply([
+          ...baseContext,
+          ...history,
+          userMessage
+        ]);
       } catch (error) {
         const errorDetails =
           error instanceof Error
@@ -131,17 +137,19 @@ export class Gateway {
   private async handleCommand(chatId: string, command: string): Promise<void> {
     if (command === "/ping") {
       const latency = Date.now() - this.bootAt;
-      await this.whatsapp.sendText(chatId, handlePing(latency));
+      await this.whatsapp.sendText(chatId, handlePing(latency, new Date().toISOString()));
       return;
     }
 
     if (command === "/status") {
+      const sessionPath = await this.getOrCreateSessionPath(chatId);
       const text = handleStatus(
         Date.now() - this.bootAt,
         this.config.provider.primaryModel,
         this.config.provider.fallbackModels.length,
         await this.sqlite.status(),
-        this.whatsapp.status()
+        this.whatsapp.status(),
+        sessionPath
       );
       await this.whatsapp.sendText(chatId, text);
       return;

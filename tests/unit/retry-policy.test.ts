@@ -43,4 +43,23 @@ describe("buildRetryPlan", () => {
       { model: "model-c", delayMs: 10 }
     ])
   })
+
+  it("clamps maxAttempts of 0 to 1", () => {
+    const plan = buildRetryPlan(buildProvider(), { maxAttempts: 0 })
+    expect(plan).toHaveLength(1)
+    expect(plan[0]?.model).toBe("model-a")
+  })
+
+  it("repeats primary model for all attempts when no fallbacks configured", () => {
+    const provider: ProviderConfig = {
+      ...buildProvider(),
+      fallbackModels: []
+    }
+    const plan = buildRetryPlan(provider, { maxAttempts: 3 })
+    expect(plan).toEqual([
+      { model: "model-a", delayMs: DEFAULT_DELAYS_MS[0] },
+      { model: "model-a", delayMs: DEFAULT_DELAYS_MS[1] },
+      { model: "model-a", delayMs: DEFAULT_DELAYS_MS[2] }
+    ])
+  })
 })

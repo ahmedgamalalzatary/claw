@@ -4,12 +4,15 @@ import pino from "pino";
 import qrcode from "qrcode-terminal";
 import type { MessageHandler, WhatsAppClient } from "./client.js";
 import type { Logger } from "../../core/logger.js";
+import { extractTextFromBaileysMessage } from "./baileys-parser.js";
 
 export class BaileysClient implements WhatsAppClient {
   private currentStatus = "disconnected";
   private onMessage: MessageHandler | null = null;
   private socket: ReturnType<typeof makeWASocket> | null = null;
   private readonly composingRefreshMs = 9000;
+  private readonly seenMessageIds = new Set<string>();
+  private readonly maxSeenMessageIds = 5000;
 
   constructor(
     private readonly authPath: string,
@@ -23,12 +26,11 @@ export class BaileysClient implements WhatsAppClient {
 
   async sendText(chatId: string, text: string): Promise<void> {
     if (!this.socket) {
-      throw new Error("WhatsApp socket is not connected.");
+      throw new Error("WhatsApp socket is not connected.")
     }
     await this.safeSendPresenceUpdate("paused", chatId)
-    await this.socket.sendMessage(chatId, { text });
+    await this.socket.sendMessage(chatId, { text })
   }
-
   status(): string {
     return this.currentStatus;
   }
@@ -108,6 +110,12 @@ export class BaileysClient implements WhatsAppClient {
       return;
     }
 
+    const messageId = message?.key?.id as string | undefined
+    if (messageId && this.isDuplicateMessageId(messageId)) {
+      await this.logger?.info(`skip duplicate message id=${messageId}`)
+      return
+    }
+
     await this.safeMarkAsRead(message)
 
     const text = extractTextFromBaileysMessage(message);
@@ -129,6 +137,21 @@ export class BaileysClient implements WhatsAppClient {
         receivedAt
       })
     })
+  }
+
+  private isDuplicateMessageId(messageId: string): boolean {
+    if (this.seenMessageIds.has(messageId)) {
+      return true
+    }
+
+    this.seenMessageIds.add(messageId)
+    if (this.seenMessageIds.size > this.maxSeenMessageIds) {
+      const oldest = this.seenMessageIds.values().next().value as string | undefined
+      if (oldest) {
+        this.seenMessageIds.delete(oldest)
+      }
+    }
+    return false
   }
 
   private async safeMarkAsRead(message: any): Promise<void> {
@@ -184,39 +207,4 @@ export class BaileysClient implements WhatsAppClient {
       )
     }
   }
-}
-
-export function extractTextFromBaileysMessage(message: any): string | null {
-  const root = message?.message;
-  if (!root) {
-    return null;
-  }
-
-  if (typeof root.conversation === "string") {
-    return root.conversation.trim();
-  }
-
-  if (typeof root.extendedTextMessage?.text === "string") {
-    return root.extendedTextMessage.text.trim();
-  }
-
-  if (root.ephemeralMessage?.message) {
-    return extractNestedTextFromBaileysMessage(root.ephemeralMessage.message);
-  }
-
-  if (root.viewOnceMessageV2?.message) {
-    return extractNestedTextFromBaileysMessage(root.viewOnceMessageV2.message);
-  }
-
-  return null;
-}
-
-export function extractNestedTextFromBaileysMessage(nested: any): string | null {
-  if (typeof nested?.conversation === "string") {
-    return nested.conversation.trim();
-  }
-  if (typeof nested?.extendedTextMessage?.text === "string") {
-    return nested.extendedTextMessage.text.trim();
-  }
-  return null;
 }
