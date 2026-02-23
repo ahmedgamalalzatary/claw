@@ -1,4 +1,9 @@
-export function extractTextFromBaileysMessage(message: any): string | null {
+import type { proto } from "@whiskeysockets/baileys"
+
+type WebMessageInfo = proto.IWebMessageInfo
+type Message = proto.IMessage
+
+export function extractTextFromBaileysMessage(message: WebMessageInfo): string | null {
   const root = message?.message
   if (!root) {
     return null
@@ -23,7 +28,7 @@ export function extractTextFromBaileysMessage(message: any): string | null {
   return null
 }
 
-export function extractNestedTextFromBaileysMessage(nested: any): string | null {
+export function extractNestedTextFromBaileysMessage(nested: Message): string | null {
   if (typeof nested?.conversation === "string") {
     return nested.conversation.trim()
   }

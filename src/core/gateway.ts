@@ -12,12 +12,12 @@ import { SessionStore } from "../storage/session-store.js";
 import { SqliteStore } from "../storage/sqlite-store.js";
 import { Logger } from "./logger.js";
 import { isMissingFileError } from "../tools/errors.js";
-import { buildRetryPlan } from "./retry-policy.js";
-import type { RetryPolicyOverrides } from "./retry-policy.js";
+import { buildRetryPlan, type RetryPolicyOverrides } from "./retry-policy.js";
 import { buildBaseContext } from "../prompts/context-builder.js";
 
 export class Gateway {
   private readonly bootAt = Date.now();
+  private readonly workspaceDir = "workspace";
   private readonly sessionPathByChatId = new Map<string, string>();
   private readonly startupSessionId =
     `gateway_${new Date().toISOString().replace(/[:.]/g, "-")}`;
@@ -85,7 +85,7 @@ export class Gateway {
       const history = await this.sessions.getMessages(sessionPath);
       await this.sessions.appendMessage(sessionPath, userMessage);
       await this.sqlite.saveMessage(message.chatId, userMessage, sessionPath);
-      const baseContext = await buildBaseContext("workspace");
+      const baseContext = await buildBaseContext(this.workspaceDir);
 
       let aiResponse: { text: string; model: string; attempt: number; latencyMs: number };
       try {
@@ -159,7 +159,7 @@ export class Gateway {
       const currentSessionPath = await this.getExistingSessionPath(chatId);
       if (currentSessionPath) {
         try {
-          await this.sessions.moveSessionToMemory(currentSessionPath, chatId);
+          await this.sessions.moveSessionToMemory(currentSessionPath);
         } catch (error) {
           if (!isMissingFileError(error)) {
             throw error;
@@ -202,7 +202,7 @@ export class Gateway {
   }
 
   private async createSessionPath(chatId: string): Promise<string> {
-    const sessionPath = this.sessions.buildSessionPath(chatId, new Date());
+    const sessionPath = this.sessions.buildSessionPath(new Date());
     this.sessionPathByChatId.set(chatId, sessionPath);
     await this.sqlite.setActiveSessionPath(chatId, sessionPath);
     return sessionPath;

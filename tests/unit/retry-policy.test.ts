@@ -29,6 +29,8 @@ describe("buildRetryPlan", () => {
       { model: "model-c", delayMs: DEFAULT_DELAYS_MS[2] }
     ])
     expect(plan).toHaveLength(DEFAULT_MAX_ATTEMPTS)
+    expect(plan.every((attempt) => typeof attempt.model === "string" && attempt.model.length > 0))
+      .toBe(true)
   })
 
   it("reuses last model and delay when overrides exceed configured arrays", () => {

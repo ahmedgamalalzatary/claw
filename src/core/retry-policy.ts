@@ -23,7 +23,7 @@ export function buildRetryPlan(
   const modelChain = [provider.primaryModel, ...provider.fallbackModels]
 
   return Array.from({ length: maxAttempts }, (_, idx) => ({
-    model: modelChain[Math.min(idx, modelChain.length - 1)] as string,
+    model: modelChain[Math.min(idx, modelChain.length - 1)] ?? provider.primaryModel,
     delayMs: Math.max(0, delays[Math.min(idx, delays.length - 1)] ?? 0)
   }))
 }

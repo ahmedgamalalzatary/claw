@@ -86,9 +86,8 @@ class TrackingSessionStore extends SessionStore {
 }
 
 class FailingMoveSessionStore extends TrackingSessionStore {
-  override async moveSessionToMemory(sessionPath: string, chatId: string): Promise<string> {
+  override async moveSessionToMemory(sessionPath: string): Promise<string> {
     void sessionPath
-    void chatId
     throw new Error("disk permission denied")
   }
 }

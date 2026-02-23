@@ -9,15 +9,13 @@ export class SessionStore {
     private readonly memoryDir: string
   ) { }
 
-  buildSessionPath(chatId: string, date = new Date()): string {
+  buildSessionPath(date = new Date()): string {
     const y = date.getUTCFullYear()
     const m = String(date.getUTCMonth() + 1).padStart(2, "0")
     const d = String(date.getUTCDate()).padStart(2, "0")
     const h = String(date.getUTCHours()).padStart(2, "0")
     const min = String(date.getUTCMinutes()).padStart(2, "0")
     const s = String(date.getUTCSeconds()).padStart(2, "0")
-    void chatId
-
     return path.join(this.sessionsDir, `${y}-${m}-${d}`, `${h}-${min}-${s}.md`)
   }
 
@@ -60,8 +58,7 @@ export class SessionStore {
     return messages
   }
 
-  async moveSessionToMemory(sessionPath: string, chatId: string): Promise<string> {
-    void chatId
+  async moveSessionToMemory(sessionPath: string): Promise<string> {
     const targetDir = this.memoryDir
     await mkdir(targetDir, { recursive: true })
 

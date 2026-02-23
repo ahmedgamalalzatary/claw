@@ -96,7 +96,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Heartbeat does not require cron for MVP; default behavior is in-app periodic scheduling while gateway is running.
 - Optional advanced mode: users may run heartbeat via `systemd timer`/cron for stricter wall-clock scheduling and host-level reliability.
 - Heartbeat runs as new/no-history chat.
-- Heartbeat context includes ` TOOLS + AGENTS + SOUL + USER`.
+- Heartbeat context includes `HEARTBEAT + TOOLS + AGENTS + SOUL + USER`.
 - If AI returns `heartbeat ok`, send nothing.
 - Otherwise send heartbeat output to WhatsApp.
 - If heartbeat processing fails, notify user and log the failure.
@@ -107,12 +107,12 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 
 - AI retries enabled.
 - DB write retries enabled.
-- Max retries `3` (configurable).
+- Max retries `3` (internal defaults, not user-configurable in `config.json` for now).
 - Delay sequence: `5s`, `10s`, `10s`.
 - Fallback sequence: same model retry, then fallback model 1, then fallback model 2.
 - Fallback attempts must use the exact same prompt/context.
 - No explicit AI timeout cutoff.
-- On final AI failure: send error text to user and keep process alive.
+- On final AI failure: send provider error text to user and keep process alive (intentional current behavior, no redaction).
 - If DB write still fails after retries, notify user.
 - On WhatsApp disconnect: reconnect forever.
 - Process messages in parallel; strict sequential processing is not required.

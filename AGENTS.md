@@ -30,7 +30,7 @@ Node ≥ 22 required. First run prints a QR code — scan with WhatsApp to creat
 
 ## Architecture
 
-
+```
 homeclaw/
 ├── docs/
 │   ├── architecture.md
@@ -45,60 +45,60 @@ homeclaw/
 │   └── count-lines.sh
 ├── src/
 │   ├── commands/
-│   │   ├── handlers.ts [binary]
-│   │   └── router.ts [binary]
+│   │   ├── handlers.ts
+│   │   └── router.ts
 │   ├── config/
-│   │   ├── loader.ts [binary]
-│   │   └── types.ts [binary]
+│   │   ├── loader.ts
+│   │   └── types.ts
 │   ├── core/
-│   │   ├── gateway.ts [binary]
-│   │   ├── logger.ts [binary]
-│   │   └── retry-policy.ts [binary]
+│   │   ├── gateway.ts
+│   │   ├── logger.ts
+│   │   └── retry-policy.ts
 │   ├── heartbeat/
-│   │   └── scheduler.ts [binary]
+│   │   └── scheduler.ts
 │   ├── integrations/
 │   │   ├── ai/
-│   │   │   ├── client.ts [binary]
-│   │   │   └── google-client.ts [binary]
+│   │   │   ├── client.ts
+│   │   │   └── google-client.ts
 │   │   └── whatsapp/
-│   │       ├── baileys-client.ts [binary]
-│   │       ├── baileys-parser.ts [binary]
-│   │       └── client.ts [binary]
+│   │       ├── baileys-client.ts
+│   │       ├── baileys-parser.ts
+│   │       └── client.ts
 │   ├── prompts/
-│   │   └── context-builder.ts [binary]
+│   │   └── context-builder.ts
 │   ├── storage/
-│   │   ├── heartbeat-store.ts [binary]
-│   │   ├── session-store.ts [binary]
-│   │   ├── sqlite-store.ts [binary]
-│   │   └── vector-store.ts [binary]
+│   │   ├── heartbeat-store.ts
+│   │   ├── session-store.ts
+│   │   ├── sqlite-store.ts
+│   │   └── vector-store.ts
 │   ├── tools/
-│   │   ├── errors.ts [binary]
-│   │   └── workspace-guard.ts [binary]
+│   │   ├── errors.ts
+│   │   └── workspace-guard.ts
 │   ├── types/
-│   │   └── chat.ts [binary]
-│   └── index.ts [binary]
+│   │   └── chat.ts
+│   └── index.ts
 ├── tests/
 │   ├── contract/
-│   │   └── baileys-parser.test.ts [binary]
+│   │   └── baileys-parser.test.ts
 │   ├── helpers/
-│   │   └── temp-dir.ts [binary]
+│   │   └── temp-dir.ts
 │   ├── integration/
-│   │   └── gateway.test.ts [binary]
+│   │   └── gateway.test.ts
 │   ├── live/
-│   │   └── google-live.test.ts [binary]
+│   │   └── google-live.test.ts
 │   └── unit/
-│       ├── config-loader.test.ts [binary]
-│       ├── context-builder.test.ts [binary]
-│       ├── handlers.test.ts [binary]
-│       ├── heartbeat-scheduler.test.ts [binary]
-│       ├── heartbeat-store.test.ts [binary]
-│       ├── logger.test.ts [binary]
-│       ├── retry-policy.test.ts [binary]
-│       ├── router.test.ts [binary]
-│       ├── session-store.test.ts [binary]
-│       ├── sqlite-store.test.ts [binary]
-│       ├── vector-store.test.ts [binary]
-│       └── workspace-guard.test.ts [binary]
+│       ├── config-loader.test.ts
+│       ├── context-builder.test.ts
+│       ├── handlers.test.ts
+│       ├── heartbeat-scheduler.test.ts
+│       ├── heartbeat-store.test.ts
+│       ├── logger.test.ts
+│       ├── retry-policy.test.ts
+│       ├── router.test.ts
+│       ├── session-store.test.ts
+│       ├── sqlite-store.test.ts
+│       ├── vector-store.test.ts
+│       └── workspace-guard.test.ts
 ├── workspace/
 │   ├── Memory/
 │   │   └── .gitkeep
@@ -112,9 +112,9 @@ homeclaw/
 ├── package.json
 ├── README.md
 ├── tsconfig.json
-├── vitest.config.ts [binary]
-└── vitest.live.config.ts [binary]
-
+├── vitest.config.ts
+└── vitest.live.config.ts
+```
 
 ## Critical Patterns
 
