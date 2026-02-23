@@ -5,7 +5,6 @@ import { ConfigLoader } from "../../src/config/loader.js"
 import { createTempDir, removeTempDir } from "../helpers/temp-dir.js"
 
 const sampleConfig = {
-  timezone: "UTC",
   provider: {
     name: "google",
     apiKey: "x",
@@ -27,12 +26,6 @@ const sampleConfig = {
     enabled: ["/status", "/ping", "/new"],
     unknownCommandBehavior: "ignore"
   },
-  retries: {
-    maxRetries: 3,
-    delaysMs: [5000, 10000, 10000],
-    applyTo: "ai_calls_only",
-    fallbackOrder: ["retry same model", "fallback model 1", "fallback model 2"]
-  },
   heartbeat: {
     enabled: true,
     intervalMinutes: 30
@@ -52,8 +45,7 @@ const sampleConfig = {
     dir: "logs",
     mode: "session_split",
     output: ["file"],
-    metadataOnly: false,
-    redact: ["api_keys"]
+    metadataOnly: false
   },
   hotReload: {
     enabled: true,
@@ -71,7 +63,7 @@ describe("ConfigLoader", () => {
       const loader = new ConfigLoader(configPath)
       const loaded = await loader.load()
       expect(loaded.provider.primaryModel).toBe("m1")
-      expect(loader.getCurrent().timezone).toBe("UTC")
+      expect(loader.getCurrent().logging.mode).toBe("session_split")
     } finally {
       await removeTempDir(dir)
     }

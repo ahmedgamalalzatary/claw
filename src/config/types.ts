@@ -1,9 +1,7 @@
 export interface GatewayConfig {
-  timezone: string;
   provider: ProviderConfig;
   whatsapp: WhatsAppConfig;
   commands: CommandsConfig;
-  retries: RetryConfig;
   heartbeat: HeartbeatConfig;
   storage: StorageConfig;
   logging: LoggingConfig;
@@ -36,13 +34,6 @@ export interface CommandsConfig {
   unknownCommandBehavior: "ignore";
 }
 
-export interface RetryConfig {
-  maxRetries: number;
-  delaysMs: number[];
-  applyTo: "ai_calls_only";
-  fallbackOrder: string[];
-}
-
 export interface HeartbeatConfig {
   enabled: boolean;
   intervalMinutes: number;
@@ -67,11 +58,9 @@ export interface LoggingConfig {
   mode: "session_split";
   output: Array<"file" | "console">;
   metadataOnly: boolean;
-  redact: string[];
 }
 
 export interface HotReloadConfig {
   enabled: boolean;
   files: string[];
 }
-

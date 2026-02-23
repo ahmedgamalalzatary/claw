@@ -17,7 +17,7 @@ src/prompts/context-builder.ts  # Loads workspace/*.md as system-role ChatMessag
 src/heartbeat/scheduler.ts      # setInterval wrapper; fires callback every intervalMinutes
 src/tools/workspace-guard.ts    # assertWithinWorkspace — path safety for any file/exec tool
 src/core/logger.ts        # Session-split file logger; log file named by session ID
-src/core/retry-policy.ts  # buildRetryPlan — builds ordered model+delay array from config
+src/core/retry-policy.ts  # buildRetryPlan — builds ordered model+delay array from internal defaults
 ```
 
 ## Critical Patterns
@@ -36,9 +36,9 @@ import { Logger } from "./logger";    // breaks at runtime
 
 **Workspace context files** — `workspace/AGENTS.md`, `SOUL.md`, `TOOLS.md`, `USER.md` are loaded as `system`-role messages via `buildBaseContext()`. `HEARTBEAT.md` is added for heartbeat-triggered flows. Edit these to change the AI persona.
 
-**Retry/fallback chain** — `config.retries` drives model cycling in `Gateway.generateAssistantReply`: tries `primaryModel`, then each `fallbackModels[i]`, with `delaysMs[i]` between attempts. Only AI calls retry; WhatsApp reconnects loop forever independently.
+**Retry/fallback chain** — internal retry defaults drive model cycling in `Gateway.generateAssistantReply`: tries `primaryModel`, then each `fallbackModels[i]`, with hardcoded delays between attempts. Only AI calls retry; WhatsApp reconnects loop forever independently.
 
-**Hot-reload** — `ConfigLoader.watch()` uses `node:fs` watch on `config.json`. `Gateway.updateConfig()` accepts the new config live; only provider/retry config is effectively swapped.
+**Hot-reload** — `ConfigLoader.watch()` uses `node:fs` watch on `config.json`. `Gateway.updateConfig()` accepts the new config live.
 
 ## Developer Workflows
 
