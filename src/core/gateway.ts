@@ -85,10 +85,24 @@ export class Gateway {
       await this.sessions.appendMessage(sessionPath, userMessage);
       await this.sqlite.saveMessage(message.chatId, userMessage, sessionPath);
 
-      const aiResponse = await this.generateAssistantReply([...history, userMessage]);
+      let aiResponse: { text: string; model: string; attempt: number; latencyMs: number };
+      try {
+        aiResponse = await this.generateAssistantReply([...history, userMessage]);
+      } catch (error) {
+        const errorDetails =
+          error instanceof Error
+            ? error.stack ?? error.message
+            : JSON.stringify(error);
+        await this.logger.error(
+          `AI call failed for chatId=${message.chatId} text=${JSON.stringify(userText)} details=${errorDetails}`
+        );
+        await this.whatsapp.sendText(message.chatId, this.extractProviderErrorMessage(error));
+        return;
+      }
+
       const finalText = this.formatAssistantReply(aiResponse.text);
       await this.logger.info(
-        `Outbound chatId=${message.chatId} model=${aiResponse.model} text=${JSON.stringify(finalText)}`
+        `Outbound chatId=${message.chatId} model=${aiResponse.model} attempt=${aiResponse.attempt} latencyMs=${aiResponse.latencyMs} text=${JSON.stringify(finalText)}`
       );
       await this.whatsapp.sendText(message.chatId, finalText);
 
@@ -99,7 +113,6 @@ export class Gateway {
       };
       await this.sessions.appendMessage(sessionPath, assistantMessage);
       await this.sqlite.saveMessage(message.chatId, assistantMessage, sessionPath);
-      await this.logger.info(`Replied using model: ${aiResponse.model}`);
     } catch (error) {
       const errorDetails =
         error instanceof Error
@@ -189,30 +202,45 @@ export class Gateway {
 
   private async generateAssistantReply(
     input: ChatMessage[]
-  ): Promise<{ text: string; model: string }> {
+  ): Promise<{ text: string; model: string; attempt: number; latencyMs: number }> {
     const retryPlan = buildRetryPlan(this.config.provider, this.retryPolicyOverrides);
     let lastError: unknown = null;
 
     for (let attempt = 0; attempt < retryPlan.length; attempt += 1) {
       const currentAttempt = retryPlan[attempt];
       const model = currentAttempt?.model ?? this.config.provider.primaryModel;
+      const startedAt = Date.now();
       try {
-        return await this.ai.complete(input, model, this.config.provider.params);
+        const response = await this.ai.complete(input, model, this.config.provider.params);
+        return {
+          ...response,
+          attempt: attempt + 1,
+          latencyMs: Date.now() - startedAt
+        };
       } catch (error) {
         lastError = error;
         const isLast = attempt === retryPlan.length - 1;
+        const errorDetails =
+          error instanceof Error
+            ? error.stack ?? error.message
+            : JSON.stringify(error);
+        await this.logger.warn(
+          `AI attempt ${attempt + 1} failed on model ${model}. details=${errorDetails}`
+        );
         if (isLast) {
           break;
         }
         const delayMs = currentAttempt?.delayMs ?? 0;
-        await this.logger.warn(
-          `AI attempt ${attempt + 1} failed on model ${model}. Retrying in ${delayMs}ms.`
-        );
+        await this.logger.warn(`Retrying in ${delayMs}ms.`);
         await wait(delayMs);
       }
     }
 
     throw lastError instanceof Error ? lastError : new Error("AI call failed.");
+  }
+
+  private extractProviderErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : "An error occurred."
   }
 
   private formatAssistantReply(text: string): string {

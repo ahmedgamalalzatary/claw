@@ -313,7 +313,7 @@ describe("Gateway integration", () => {
     expect(whatsapp.sent[0]?.text).toBe("fallback response")
   })
 
-  it("returns internal error text when AI ultimately fails", async () => {
+  it("returns provider error text when AI ultimately fails", async () => {
     const events: string[] = []
     const ai = new FakeAI(
       [new Error("a"), new Error("b"), new Error("c")],
@@ -327,10 +327,10 @@ describe("Gateway integration", () => {
     await gateway.start()
     await whatsapp.emit("fail now")
 
-    expect(whatsapp.sent[0]?.text).toContain("internal error")
+    expect(whatsapp.sent[0]?.text).toBe("c")
   })
 
-  it("returns internal error text when AI throws a non-Error", async () => {
+  it("returns fallback error text when AI throws a non-Error", async () => {
     const events: string[] = []
     const ai = new FakeAI(
       ["not-an-error-object", "still-not-an-error-object", "again-not-an-error-object"],
@@ -344,7 +344,7 @@ describe("Gateway integration", () => {
     await gateway.start()
     await whatsapp.emit("force non error")
 
-    expect(whatsapp.sent[0]?.text).toContain("internal error")
+    expect(whatsapp.sent[0]?.text).toBe("AI call failed.")
   })
 
   it("returns internal error when /new move to memory fails with non-ENOENT error", async () => {
