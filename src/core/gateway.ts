@@ -170,7 +170,6 @@ export class Gateway {
       const nextSessionPath = await this.createSessionPath(chatId);
       await this.logger.setSession(this.sessionIdFromPath(nextSessionPath));
       await this.whatsapp.sendText(chatId, handleNewSessionMessage());
-      return;
     }
 
     // Unknown commands are intentionally ignored for MVP.
@@ -252,7 +251,7 @@ export class Gateway {
   }
 
   private formatAssistantReply(text: string): string {
-    const normalized = text.replace(/\r\n/g, "\n").trim();
+    const normalized = text.replaceAll("\r\n", "\n").trim();
     return normalized || "empty response";
   }
 }

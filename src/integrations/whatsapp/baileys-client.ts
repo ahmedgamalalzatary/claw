@@ -93,7 +93,7 @@ export class BaileysClient implements WhatsAppClient {
       return;
     }
 
-    const remoteJid = message?.key?.remoteJid as string | undefined;
+    const remoteJid = message?.key?.remoteJid;
     const fromMe = Boolean(message?.key?.fromMe);
     if (!remoteJid || fromMe) {
       await this.logger?.info(
