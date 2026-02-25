@@ -19,11 +19,8 @@ This architecture is governed by strict dependency inversion and isolation. The 
 ├── docs/
 │   ├── Checklist.md
 │   ├── Features.md
-│   ├── architecture.md
-│   ├── memory.md
 │   ├── phases.md
-│   ├── summarization.md
-│   └── testing-plan.md
+│   └── summarization.md
 ├── scripts/
 │   ├── count-lines.ps1
 │   └── count-lines.sh
@@ -128,10 +125,7 @@ This architecture is governed by strict dependency inversion and isolation. The 
 ### docs/ (Documentation)
 *   **Checklist.md**: Tracks implementation status across defined project phases.
 *   **Features.md**: Exhaustive functional specification of the Gateway, mapping both MVP and future capabilities.
-*   **architecture.md**: High-level systems design outlining components, prompt assembly, and memory flows.
-*   **memory.md**: Defines the dual-storage strategy (Markdown + SQLite), session lifecycles, and vector RAG scaffold.
 *   **phases.md**: Strategic rollout plan defining chronological development goals.
-*   **testing-plan.md**: Outlines the multi-layered testing strategy (Unit, Integration, Contract, Live).
 
 ### scripts/ (Automation)
 *   **count-lines.sh**: Bash utility to calculate lines of source code, ignoring build artifacts.

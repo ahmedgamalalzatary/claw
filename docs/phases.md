@@ -78,6 +78,7 @@ Implementation status is tracked in `docs/Checklist.md`.
 - `/new`
 - compaction event
 - No TTL/expiry memory deletion.
+- Treat `sessions/` and `memory/` as read-only for AI/tooling writes (gateway-only mutation).
 
 ## Phase 8: Persistence and Source-of-Truth Rules
 
@@ -154,7 +155,7 @@ Implementation status is tracked in `docs/Checklist.md`.
 ## Phase 14: Compaction and Long Context Control
 
 - Track token count for full chat.
-- Trigger compaction at 60k tokens.
+- Trigger compaction at 64k tokens.
 - Compress all older history.
 - Keep only 2 latest raw turns:
 - last user message
@@ -168,6 +169,9 @@ Implementation status is tracked in `docs/Checklist.md`.
 - Index source is chat messages.
 - Keep vector retrieval disabled by default.
 - Enable retrieval only when explicitly triggered by bot/model action.
+- Keep a memory index file as a manual/lazy memory index:
+- list memory folder/file tree
+- include 1-2 line summary per memory file
 
 ## Phase 16: Workspace Boundary for Tooling
 
@@ -177,11 +181,46 @@ Implementation status is tracked in `docs/Checklist.md`.
 - Keep skills/tools behavior aligned with:
 - skills as markdown guidance files
 - model decides action flow based on provided skill/tool docs
+- Tooling surface now:
+- `exec`
+- `spawn`
+- Intent to integrate `node-pty` later.
+- If an AI agent starts an autonomous task, it must create `workspace/todo/todo.md` and update it on each step (gateway-enforced).
 
-## Phase 17: Post-MVP Extensions
+## Phase 17: Checkpointing
+
+- Every `10min`, gateway creates a copy of current `workspace/` state.
+- Checkpoint artifacts are immutable and only gateway can create/manage them.
+
+## Phase 18: Web Access Integration
+
+- Integrate web access through Python `scrapling`.
+- Provide a web-fetch MCP server.
+- Start web-fetch MCP server automatically, but load its context/content only when explicitly requested by AI/model.
+
+## Phase 19: Post-MVP Extensions
 
 - OAuth auth path (future).
 - Allowlist controls (future).
 - Additional providers/models (future).
 - Group chat support (future).
 - Media input support (future).
+
+## Phase 20: Testing and Delivery Quality
+
+- Keep `vitest` as the single test framework.
+- Maintain test layers:
+- unit
+- integration (mocked external services)
+- adapter contract
+- live smoke
+- Keep test layout under:
+- `tests/unit/**`
+- `tests/integration/**`
+- `tests/contract/**`
+- `tests/live/**`
+- Enforce CI quality gates:
+- `typecheck`
+- coverage gate (`>=70%` lines and branches)
+- build
+- Keep nightly live smoke checks in CI.

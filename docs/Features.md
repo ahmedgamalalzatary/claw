@@ -64,10 +64,13 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Persist assistant output even if WhatsApp send fails.
 - Source preference: recent from session file, search/history from SQLite.
 - Restore state from DB + session files.
-- Compaction at `32k` tokens.
+- Compaction at `64k` tokens.
 - Compaction output should use structured sections.
 - After compaction, keep latest 2 raw messages (last user + last assistant).
 - Persist compaction output to DB + markdown history.
+- `sessions/` and `memory/` are gateway-managed read-only areas for AI/tooling (AI cannot create/update/delete there).
+- Checkpoint feature: every `10min`, gateway copies the current `workspace/` state to an immutable checkpoint artifact.
+- Checkpoint artifacts are auto-managed by gateway only (not user/AI managed).
 
 ## Vector Memory
 
@@ -77,6 +80,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Retrieval only when explicitly triggered by bot/model action.
 - Future intent: add user-triggered retrieval command support.
 - Retrieval params/topK can be model-driven.
+- Memory index file role: lightweight/manual memory index. ( lazyway for searching instead of vector search) It lists folder/file structure under `memory/` and gives each memory file a 1-2 line summary for manual lookup by the model/tooling.
 
 ## Prompt/Workspace Files
 
@@ -89,6 +93,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Context assembly order (heartbeat): `AGENTS -> SOUL -> TOOLS -> USER -> HEARTBEAT -> heartbeat message`.
 - Skills concept discussed as markdown skill files (`.agent/[skill]/Skill.md` style).
 - AI updating files via tools is part of the intended design path.
+- Autonomous task runs must create `workspace/todo/todo.md` and update it on each task step (gateway-enforced).
 
 ## Heartbeat
 
@@ -137,6 +142,26 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - For worker-only MVP, Docker health checks should rely on process/container status, not an HTTP `/health` endpoint.
 - Support both dev and production commands.
 - Hot-reload scope: `config.json` only.
+- Tooling surface for now: `exec` and `spawn` (with intent to add `node-pty` later).
+- Web integration path: Python `scrapling` + web-fetch MCP server.
+- Web-fetch MCP server is started automatically, but its context/content is only loaded into AI context when explicitly requested.
+
+## Testing and CI
+
+- Test framework: `vitest` only (no Jest mix).
+- Test layers:
+  - Unit tests for pure/isolated modules.
+  - Integration tests for gateway flow with mocked AI/WhatsApp clients.
+  - Adapter contract tests for Baileys parsing/filtering.
+  - Live smoke tests (nightly) for real provider/connectivity checks.
+- Test structure:
+  - `tests/unit/**/*.test.ts`
+  - `tests/integration/**/*.test.ts`
+  - `tests/contract/**/*.test.ts`
+  - `tests/live/**/*.test.ts`
+  - `tests/helpers/**`
+- CI checks must include typecheck, coverage gate, and build.
+- Coverage gate target: lines `>=70%`, branches `>=70%`.
 
 ## MVP Success Definition
 

@@ -66,6 +66,7 @@ Only implemented items are checked.
 - [x] Session moved to `memory/<uuid>.md` on `/new`.
 - [ ] Session moved to memory on compaction trigger.
 - [x] No TTL/expiry deletion behavior implemented.
+- [ ] `sessions/` and `memory/` enforced as read-only for AI/tooling operations.
 
 ## Phase 8: Persistence and Source-of-Truth Rules
 
@@ -129,7 +130,7 @@ Only implemented items are checked.
 ## Phase 14: Compaction and Long Context
 
 - [ ] Token counting implemented.
-- [ ] Compaction trigger at 60k tokens.
+- [ ] Compaction trigger at 64k tokens.
 - [ ] Compress old history while keeping last user + assistant raw turns.
 - [ ] Persist compaction summary to SQLite.
 - [ ] Persist compaction summary to markdown history message.
@@ -141,6 +142,7 @@ Only implemented items are checked.
 - [ ] Real vector index over chat messages.
 - [ ] Retrieval path implementation.
 - [ ] Retrieval gated by explicit bot/model trigger.
+- [ ] Memory index file maintained as folder/file memory index with 1-2 line per-file summaries.
 
 ## Phase 16: Workspace Boundary for Tooling
 
@@ -148,11 +150,42 @@ Only implemented items are checked.
 - [ ] Enforcement wired through tool/file/exec runtime flows.
 - [ ] Hard runtime rejection for out-of-workspace operations in tool stack.
 - [ ] Skill/tool execution flow that updates `USER.md` via model actions.
+- [ ] Tool surface includes `exec` and `spawn` runtime integration.
+- [ ] Autonomous-task todo enforcement (`workspace/todo/todo.md` create + step updates).
 
-## Phase 17: Post-MVP Extensions
+## Phase 17: Checkpointing
+
+- [ ] 10-minute workspace checkpoint scheduler implemented.
+- [ ] Immutable checkpoint artifact behavior implemented.
+- [ ] Checkpoints are gateway-managed only (AI/user cannot create/update/delete).
+
+## Phase 18: Web Access Integration
+
+- [ ] `scrapling` integration implemented.
+- [ ] Web-fetch MCP server integration implemented.
+- [ ] Web-fetch context loaded only on explicit model request.
+
+## Phase 19: Post-MVP Extensions
 
 - [ ] OAuth auth.
 - [ ] Allowlist controls.
 - [ ] Additional providers/models.
 - [ ] Group chat support.
 - [ ] Media input support.
+
+## Phase 20: Testing and Delivery Quality
+
+- [x] `vitest` used as the only test framework.
+- [x] Unit test suite exists.
+- [x] Integration test suite exists.
+- [x] Adapter contract test suite exists.
+- [x] Live smoke test suite exists.
+- [x] Test helper utilities exist.
+- [x] `vitest.config.ts` exists.
+- [x] `vitest.live.config.ts` exists.
+- [x] Test scripts exist: `test`, `test:unit`, `test:integration`, `test:contract`, `test:coverage`, `test:live`.
+- [x] CI check script exists: `ci:check`.
+- [x] Coverage gate enforced at lines `>=70%` and branches `>=70%`.
+- [x] CI workflow exists for core checks.
+- [x] Live smoke workflow exists.
+- [x] Deploy workflow exists.
