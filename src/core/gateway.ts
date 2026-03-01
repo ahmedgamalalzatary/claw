@@ -136,6 +136,13 @@ export class Gateway {
   }
 
   private async handleCommand(chatId: string, command: string): Promise<void> {
+    const isEnabled = this.config.commands.enabled.includes(command)
+    if (!isEnabled) {
+      if (this.config.commands.unknownCommandBehavior === "ignore") {
+        return
+      }
+    }
+
     if (command === "/ping") {
       const latency = Date.now() - this.bootAt;
       await this.whatsapp.sendText(chatId, handlePing(latency, new Date().toISOString()));
@@ -174,6 +181,9 @@ export class Gateway {
     }
 
     // Unknown commands are intentionally ignored for MVP.
+    if (this.config.commands.unknownCommandBehavior === "ignore") {
+      return
+    }
   }
 
   private sessionIdFromPath(filePath: string): string {
@@ -202,7 +212,7 @@ export class Gateway {
   }
 
   private async createSessionPath(chatId: string): Promise<string> {
-    const sessionPath = this.sessions.buildSessionPath(new Date());
+    const sessionPath = this.sessions.buildSessionPath(chatId, new Date());
     this.sessionPathByChatId.set(chatId, sessionPath);
     await this.sqlite.setActiveSessionPath(chatId, sessionPath);
     return sessionPath;
