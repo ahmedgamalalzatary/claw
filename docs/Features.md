@@ -72,6 +72,15 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Checkpoint feature: every `10min`, gateway copies the current `workspace/` state to an immutable checkpoint artifact.
 - Checkpoint artifacts are auto-managed by gateway only (not user/AI managed).
 
+## Search and Retrieval (Two-Layer Design)
+
+Storage reads use two complementary search layers:
+
+- **SQL search (SQLite)**: fast, structured, keyword/date queries. Used for exact matches, recent history, and metadata lookups (e.g., "last 20 messages", "messages from March 1st", `WHERE content LIKE '%keyword%'`). Cheap, instant, local. Serves as the default search path.
+- **Vector search (sqlite-vec)**: slower, semantic, meaning-based. Used for finding contextually similar messages even when exact keywords don't match (e.g., "that trip we talked about" finds messages about "travel plans to Cairo"). Requires embedding generation. Gated by explicit bot/model trigger.
+
+SQL search is the foundation; vector search layers on top for complex/semantic retrieval. Both read from the same underlying message data.
+
 ## Vector Memory
 
 - Use `sqlite-vec`.
@@ -94,6 +103,22 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Skills concept discussed as markdown skill files (`.agent/[skill]/Skill.md` style).
 - AI updating files via tools is part of the intended design path.
 - Autonomous task runs must create `workspace/todo/todo.md` and update it on each task step (gateway-enforced).
+- Task complexity self-assessment: AI evaluates task complexity. Tasks above low-mid complexity require creating `workspace/todo/todo.md`. Todos can be rewritten (updated), checked off, or deleted (file removed). Rule is defined in `AGENTS.md` CORE:LOCK section.
+
+### Workspace File Protection (CORE:LOCK)
+
+Workspace files (e.g., `AGENTS.md`, `TOOLS.md`) contain both owner-defined rules and AI-editable sections. Section markers control what the AI can and cannot modify:
+- `<!-- CORE:LOCK -->` ... `<!-- /CORE:LOCK -->`: Owner-defined content. Immutable to AI.
+- `<!-- AI:OPEN -->` ... `<!-- /AI:OPEN -->`: AI-editable content. AI can read, write, and update freely.
+- AI reads the entire file for full context but can only write within `AI:OPEN` blocks.
+- Owner can edit anything (both sections) directly — not constrained by markers.
+
+Protection is enforced through three layers:
+- **Layer 1 — Prompt-level (soft)**: `AGENTS.md` instructs the AI to never modify `CORE:LOCK` sections. Handles 99% of cases through instruction following.
+- **Layer 2 — File write tool (hard)**: Gateway extracts `CORE:LOCK` content before and after a file write. If locked content changed, the write is rejected.
+- **Layer 3 — Post-execution revert (safety net)**: At startup, gateway hashes and caches all `CORE:LOCK` sections. After any tool execution (`exec`, `spawn`, file write), gateway re-hashes and compares. If a hash changed, the locked section is auto-restored from cache and the tamper is logged. This catches indirect writes via shell commands that bypass the file write tool.
+
+Layer 3 is revert-based (not prevention-based) because raw `exec` cannot be fully intercepted at the code level — any shell command variant can touch files. Revert catches all methods regardless of how the write was performed.
 
 ## Heartbeat
 
@@ -117,12 +142,16 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Fallback sequence: same model retry, then fallback model 1, then fallback model 2.
 - Fallback attempts must use the exact same prompt/context.
 - No explicit AI timeout cutoff.
-- On final AI failure: send provider error text to user and keep process alive (intentional current behavior, no redaction).
+- On final AI failure: send rich error details to user via WhatsApp and keep process alive.
+- Rich error message includes: models tried in order, specific error type/message, and suggestion (e.g., "wait and retry"). No redaction — single-user, full transparency.
+- No API key validation at startup. If the key is bad, the first message will fail with a rich error explaining what went wrong.
 - If DB write still fails after retries, notify user.
 - On WhatsApp disconnect: reconnect forever.
 - Process messages in parallel; strict sequential processing is not required.
 - Out-of-order replies during bursts are acceptable.
 - Use message-id deduplication to avoid processing duplicate inbound events.
+- Dedup lives in Gateway (not transport layer). Gateway is the central coordinator — all messages pass through it.
+- Implementation: in-memory `Set<string>` of recent message IDs in Gateway. Skip if already seen.
 
 ## Logging
 
@@ -139,11 +168,14 @@ This file captures all features discussed in this chat (MVP and non-MVP).
 - Docker deployment on VPS.
 - MVP preference: single container.
 - Pure worker process for MVP.
-- For worker-only MVP, Docker health checks should rely on process/container status, not an HTTP `/health` endpoint.
+- For worker-only MVP, Docker health checks use a file-based health signal (no HTTP `/health` endpoint).
+- Gateway writes a timestamp to `data/health` periodically. Docker healthcheck reads the file age to determine if the process is alive and functional.
 - Support both dev and production commands.
 - Hot-reload scope: `config.json` only.
 - Tooling surface for now: `exec` and `spawn` (with intent to add `node-pty` later).
-- Web integration path: Python `scrapling` + web-fetch MCP server.
+- Web integration is two-layer:
+  - **Layer 1 (default)**: Node.js built-in `fetch()` + readability parser for simple page reads. Zero extra dependencies, same process.
+  - **Layer 2 (advanced)**: Python `scrapling` + web-fetch MCP server for JS-rendered pages and anti-bot bypass scenarios.
 - Web-fetch MCP server is started automatically, but its context/content is only loaded into AI context when explicitly requested.
 
 ## Testing and CI
@@ -161,7 +193,7 @@ This file captures all features discussed in this chat (MVP and non-MVP).
   - `tests/live/**/*.test.ts`
   - `tests/helpers/**`
 - CI checks must include typecheck, coverage gate, and build.
-- Coverage gate target: lines `>=70%`, branches `>=70%`.
+- Coverage gate target: lines `>=80%`, branches `>=80%`.
 
 ## MVP Success Definition
 

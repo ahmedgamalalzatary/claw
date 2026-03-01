@@ -110,7 +110,6 @@ export class Gateway {
       await this.logger.info(
         `Outbound chatId=${message.chatId} model=${aiResponse.model} attempt=${aiResponse.attempt} latencyMs=${aiResponse.latencyMs} text=${JSON.stringify(finalText)}`
       );
-      await this.whatsapp.sendText(message.chatId, finalText);
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
@@ -119,6 +118,8 @@ export class Gateway {
       };
       await this.sessions.appendMessage(sessionPath, assistantMessage);
       await this.sqlite.saveMessage(message.chatId, assistantMessage, sessionPath);
+
+      await this.whatsapp.sendText(message.chatId, finalText);
     } catch (error) {
       const errorDetails =
         error instanceof Error

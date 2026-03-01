@@ -72,9 +72,9 @@ Only implemented items are checked.
 
 - [x] Inbound user message write happens before AI call.
 - [x] Inbound write order in gateway code is session then SQLite call.
-- [ ] Real SQLite persistence implemented.
-- [ ] One DB row per message with role (`user`/`assistant`/`system`).
-- [ ] Assistant message persisted even if WhatsApp send fails.
+- [x] Real SQLite persistence implemented.
+- [x] One DB row per message with role (`user`/`assistant`/`system`).
+- [x] Assistant message persisted even if WhatsApp send fails.
 - [ ] Source preference enforcement (session-first, SQLite for search/history) in runtime read path.
 - [ ] State restore from DB + session on restart.
 
@@ -112,10 +112,10 @@ Only implemented items are checked.
 - [x] `/workspace/TOOLS.md` exists.
 - [x] `/workspace/USER.md` exists.
 - [x] `/workspace/HEARTBEAT.md` exists.
-- [ ] Core context files injected in live AI calls.
-- [ ] Prompt order enforced:
-- [ ] `AGENTS -> SOUL -> TOOLS -> USER -> HEARTBEAT/message -> chat context`.
-- [ ] System prompt behavior explicitly sourced from `AGENTS.md`.
+- [x] Core context files injected in live AI calls.
+- [x] Prompt order enforced:
+- [x] `AGENTS -> SOUL -> TOOLS -> USER -> HEARTBEAT/message -> chat context`.
+- [x] System prompt behavior explicitly sourced from `AGENTS.md`.
 
 ## Phase 13: Heartbeat Loop
 
@@ -185,7 +185,7 @@ Only implemented items are checked.
 - [x] `vitest.live.config.ts` exists.
 - [x] Test scripts exist: `test`, `test:unit`, `test:integration`, `test:contract`, `test:coverage`, `test:live`.
 - [x] CI check script exists: `ci:check`.
-- [x] Coverage gate enforced at lines `>=70%` and branches `>=70%`.
+- [x] Coverage gate enforced at lines `>=80%` and branches `>=80%`.
 - [x] CI workflow exists for core checks.
 - [x] Live smoke workflow exists.
 - [x] Deploy workflow exists.

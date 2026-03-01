@@ -221,6 +221,6 @@ Implementation status is tracked in `docs/Checklist.md`.
 - `tests/live/**`
 - Enforce CI quality gates:
 - `typecheck`
-- coverage gate (`>=70%` lines and branches)
+- coverage gate (`>=80%` lines and branches)
 - build
 - Keep nightly live smoke checks in CI.
